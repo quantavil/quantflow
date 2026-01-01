@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QUANTFLOW | Math Proficiency Terminal</title>
+
+    <!-- IBM Plex Mono Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="assets/css/styles.css">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"
+        onerror="alert('Error: Tailwind CSS failed to load. Please check your connection.')"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'charcoal': '#1A1A1A',
+                        'charcoal-light': '#222222',
+                        'charcoal-lighter': '#2A2A2A',
+                        'charcoal-border': '#333333',
+                        'terminal-green': '#00D26A',
+                        'terminal-green-dim': '#00A854',
+                        'terminal-green-dark': '#004D25',
+                        'signal-orange': '#FF9F1C',
+                        'signal-orange-dark': '#CC7F16',
+                        'signal-red': '#FF4B4B',
+                        'signal-red-dark': '#CC3C3C',
+                        'text-primary': '#E8E8E8',
+                        'text-secondary': '#B0B0B0',
+                        'text-muted': '#888888',
+                        'text-dim': '#666666',
+                    },
+                    fontSize: {
+                        'xs': '0.8125rem',
+                        'sm': '0.9375rem',
+                        'base': '1.0625rem',
+                        'lg': '1.1875rem',
+                        'xl': '1.3125rem',
+                    },
+                    fontFamily: {
+                        'mono': ['IBM Plex Mono', 'monospace'],
+                    },
+                    borderRadius: {
+                        'none': '0',
+                    },
+                    animation: {
+                        'flash-green': 'flashGreen 0.3s ease-out',
+                        'flash-orange': 'flashOrange 0.3s ease-out',
+                        'flash-red': 'flashRed 0.3s ease-out',
+                        'pulse-slow': 'pulse 3s infinite',
+                        'blink': 'blink 1s step-end infinite',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Fraction.js -->
+    <script src="https://cdn.jsdelivr.net/npm/fraction.js@5.2.1/dist/fraction.min.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/fraction.js@5.2.1/dist/fraction.min.js'"></script>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js'"></script>
+    <script src="assets/js/engine.js"></script>
+    <script src="assets/js/app.js"></script>
+</head>
+
+<body class="bg-charcoal text-text-primary font-mono h-screen flex flex-col overflow-hidden" x-data="quantflow"
+    x-init="init()" @click="focusInput()" @keydown.window="handleKeydown($event)">
+
+    <!-- CRT Overlay -->
+    <div class="crt-overlay scanlines"></div>
+    <div class="crt-overlay vignette"></div>
+
+    <!-- Icon Sprite (Simplified) -->
+    <svg style="display: none;">
+        <symbol id="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="square">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+        </symbol>
+        <symbol id="icon-analytics" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="square">
+            <path
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </symbol>
+        <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+            </path>
+        </symbol>
+        <symbol id="icon-backspace" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path
+                d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z" />
+        </symbol>
+    </svg>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════════
+         TOP STATUS BAR - Session Metrics & System Status
+         ═══════════════════════════════════════════════════════════════════════════════ -->
+    <header
+        class="h-10 bg-charcoal-light border-b border-charcoal-border flex items-center justify-between px-4 text-xs">
+        <!-- Left: Branding -->
+        <div class="flex items-center gap-4">
+            <!-- Mobile Menu Toggle -->
+            <button @click="sidebarOpen = !sidebarOpen; analyticsOpen = false"
+                class="md:hidden p-1 text-text-muted hover:text-terminal-green transition-colors">
+                <svg class="w-5 h-5">
+                    <use href="#icon-menu" />
+                </svg>
+            </button>
+
+            <div class="flex items-center gap-2">
+                <span class="text-terminal-green font-bold text-sm tracking-wider">QUANTFLOW</span>
+                <span class="text-text-muted hidden sm:inline">v2.4.1</span>
+            </div>
+            <div class="h-4 w-px bg-charcoal-border hidden sm:block"></div>
+            <div class="flex items-center gap-2">
+                <span class="status-indicator" :class="session.isActive ? 'online' : ''"></span>
+                <span class="text-text-secondary hidden sm:inline"
+                    x-text="session.isActive ? 'SESSION ACTIVE' : 'READY'"></span>
+            </div>
+        </div>
+
+        <!-- Center: Live Metrics -->
+        <div class="hidden lg:flex items-center gap-6">
+            <template x-for="metric in headerMetrics" :key="metric.label">
+                <div class="flex items-center gap-2">
+                    <span class="text-text-muted" x-text="metric.label"></span>
+                    <span :class="metric.colorClass" class="font-medium" x-text="metric.value"></span>
+                    <div class="h-4 w-px bg-charcoal-border" x-show="!$el.nextElementSibling?.matches(':last-child')">
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Right: Time & Auth & Controls -->
+        <div class="flex items-center gap-4">
+            <!-- Auth Status -->
+            <div class="flex items-center gap-3">
+                <template x-if="!auth.isLoggedIn">
+                    <button @click="loginWithGitHub"
+                        class="text-text-muted hover:text-terminal-green flex items-center gap-1.5 transition-colors group">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.041-1.416-4.041-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                        </svg>
+                        <span class="group-hover:underline">LOGIN</span>
+                    </button>
+                </template>
+                <template x-if="auth.isLoggedIn">
+                    <div class="flex items-center gap-3">
+                        <span class="text-terminal-green flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 bg-terminal-green rounded-full animate-pulse"></span>
+                            <span x-text="auth.user?.userId.toUpperCase() || 'LOADING...'"></span>
+                        </span>
+                        <div class="h-4 w-px bg-charcoal-border"></div>
+                        <button @click="logout"
+                            class="text-text-muted hover:text-signal-red transition-colors">LOGOUT</button>
+                    </div>
+                </template>
+            </div>
+
+            <div class="h-4 w-px bg-charcoal-border hidden sm:block"></div>
+            <div class="hidden sm:flex items-center gap-2">
+                <span class="text-text-muted">SESSION</span>
+                <span class="text-text-secondary font-medium" x-text="formatSessionTime(session.seconds)"></span>
+            </div>
+            <!-- Analytics Toggle (Mobile) -->
+            <button @click="analyticsOpen = !analyticsOpen; sidebarOpen = false"
+                class="lg:hidden p-1 text-text-muted hover:text-terminal-green transition-colors">
+                <svg class="w-5 h-5">
+                    <use href="#icon-analytics" />
+                </svg>
+            </button>
+
+            <button @click="settingsOpen = true"
+                class="p-1 text-text-muted hover:text-terminal-green transition-colors">
+                <svg class="w-5 h-5">
+                    <use href="#icon-settings" />
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════════
+         MAIN CONTENT AREA - Three Column Layout
+         ═══════════════════════════════════════════════════════════════════════════════ -->
+    <main class="flex-1 flex overflow-hidden relative">
+
+        <!-- ═══════════════════════════════════════════════════════════════════════════
+             LEFT PANEL - Category Selection & Configuration
+             ═══════════════════════════════════════════════════════════════════════════ -->
+        <!-- Mobile Sidebars Overlay -->
+        <div x-show="sidebarOpen || analyticsOpen" @click="sidebarOpen = false; analyticsOpen = false"
+            class="modal-backdrop md:hidden !bg-black/60" x-cloak x-transition.opacity>
+        </div>
+
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+            class="sidebar-base left-0 border-r border-charcoal-border -translate-x-full" x-cloak>
+            <!-- Panel Header -->
+            <div class="panel-header">
+                <span class="text-xs text-text-muted font-medium tracking-wide">OPERATION SELECT</span>
+                <button @click="sidebarOpen = false" class="close-btn md:hidden">&times;</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+
+                <!-- Categories Grid -->
+                <div class="panel-section">
+                    <div class="grid grid-cols-2 gap-1">
+                        <template x-for="(op, key) in operations" :key="key">
+                            <button
+                                class="category-btn px-3 py-3 text-xs font-medium border border-charcoal-border bg-charcoal-light hover:bg-charcoal-lighter transition-colors text-left"
+                                :class="{ 'active': practice.category === key }" @click="selectCategory(key)">
+                                <span class="block text-xs opacity-60" x-text="getCategoryIndex(key)"></span>
+                                <span x-text="key.toUpperCase()"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Tier Selection -->
+                <div class="panel-section">
+                    <div class="panel-section-title">
+                        <span>COMPLEXITY TIER</span>
+                        <span class="text-terminal-green" x-text="currentTierLabel"></span>
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                        <template x-for="(tier, idx) in currentOperation.tiers" :key="tier.id">
+                            <button class="btn-ghost" :class="{ 'active': practice.tier === tier.id }"
+                                @click="selectTier(tier.id)" x-text="tier.label">
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Variants -->
+                <div class="panel-section flex-1">
+                    <div class="panel-section-title">
+                        <span>VARIANTS</span>
+                    </div>
+                    <div class="space-y-1">
+                        <template x-for="variant in currentOperation.variants" :key="variant.id">
+                            <label
+                                class="flex items-center gap-2 p-3 bg-charcoal border border-charcoal-border cursor-pointer hover:border-terminal-green transition-colors">
+                                <input type="checkbox" class="variant-checkbox w-4 h-4 accent-terminal-green"
+                                    :value="variant.id" :checked="practice.variants.includes(variant.id)"
+                                    @change="toggleVariant(variant.id)">
+                                <span class="text-xs" x-text="variant.label"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+
+
+            </div>
+        </aside>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════════
+             CENTER PANEL - Main Practice Area
+             ═══════════════════════════════════════════════════════════════════════════ -->
+        <section class="flex-1 flex flex-col">
+            <!-- Practice Header -->
+            <div class="h-8 bg-charcoal-lighter border-b border-charcoal-border flex items-center justify-between px-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-terminal-green px-2 py-0.5 border border-terminal-green"
+                        x-text="practice.category.toUpperCase()"></span>
+                </div>
+                <div class="flex items-center gap-4 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="text-text-muted">PAR</span>
+                        <span class="text-signal-orange font-medium" x-text="parTimeDisplay"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-text-muted">QUEUE</span>
+                        <span class="text-text-primary font-medium" x-text="errorQueue.length"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Area Scrollable Wrapper -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar bg-charcoal">
+                <!-- Main Question Area -->
+                <div class="h-[280px] sm:h-[380px] flex flex-col items-center justify-center relative border border-charcoal-border m-2 sm:m-4 bg-charcoal-light flex-shrink-0"
+                    :class="flashClass" x-ref="questionContainer">
+
+                    <!-- Pause Overlay -->
+                    <div x-show="session.isPaused" x-cloak x-transition.opacity
+                        class="absolute inset-0 bg-charcoal/90 flex flex-col items-center justify-center z-20">
+                        <div class="text-terminal-green text-4xl font-bold tracking-widest mb-4">PAUSED</div>
+                        <div class="text-text-muted text-xs animate-pulse">PRESS ESC TO RESUME</div>
+                    </div>
+
+                    <!-- Question Display -->
+                    <div class="text-center">
+                        <div class="text-4xl md:text-6xl font-bold tracking-tight mb-8" x-html="questionDisplayHtml">
+                        </div>
+
+                        <!-- Input Area -->
+                        <div class="relative flex flex-col items-center">
+                            <input type="text" x-model="userAnswer" x-ref="answerInput"
+                                @keydown.enter.prevent="submitAnswer" @input="handleInput"
+                                :disabled="!session.isActive || session.isPaused" inputmode="none"
+                                class="w-full max-w-[280px] h-16 bg-charcoal border-2 border-charcoal-border text-4xl text-center font-bold text-text-primary input-field !focus:border-terminal-green transition-colors"
+                                placeholder="?" autocomplete="off">
+                        </div>
+
+                        <!-- Timer Display -->
+                        <div class="mt-6 flex items-center justify-center gap-4">
+                            <div class="text-2xl font-bold tabular-nums" :class="timerColorClass"
+                                x-show="config.display.showTimer">
+                                <span x-text="liveTimerDisplay"></span><span class="text-sm">s</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subtle Feedback Overlay (Success/Warning) -->
+                    <div class="absolute bottom-4 right-4 flex items-end justify-end transition-all duration-150 z-30"
+                        x-show="feedback.visible && feedback.type !== 'error'" x-cloak
+                        :class="feedback.visible ? 'opacity-100 translate-y-0' : 'opacity-0 pointer-events-none translate-y-2'">
+                        <div class="bg-charcoal p-3 flex items-center gap-3 shadow-2xl" :class="feedbackBorderClass">
+                            <div class="text-2xl" :class="feedbackColorClass" x-text="feedback.icon"></div>
+                            <div class="text-left">
+                                <div class="text-xs font-bold leading-none" :class="feedbackColorClass"
+                                    x-text="feedback.text"></div>
+                                <div class="text-[10px] text-text-muted mt-0.5 tabular-nums" x-text="feedback.detail">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Prominent Error Overlay (Centered) -->
+                    <div class="absolute inset-0 flex items-center justify-center z-40 bg-black/40 backdrop-blur-[2px]"
+                        x-show="feedback.visible && feedback.type === 'error'" x-cloak
+                        x-transition:enter="transition ease-out duration-200"
+                        x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+                        <div
+                            class="bg-charcoal border-2 border-signal-red p-6 shadow-[0_0_40px_rgba(255,75,75,0.3)] text-center animate-shake w-full max-w-[320px] mx-4">
+                            <div class="text-5xl mb-3 text-signal-red" x-text="feedback.icon"></div>
+                            <div class="text-3xl font-bold tracking-tight text-signal-red mb-2" x-text="feedback.text">
+                            </div>
+                            <div class="text-lg font-medium text-text-primary px-4 py-2 bg-signal-red/10 border border-signal-red/20 tabular-nums"
+                                x-text="feedback.detail"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Bar: Recent Responses + Session Controls -->
+                <div
+                    class="min-h-14 border-y border-charcoal-border flex flex-col sm:flex-row items-center justify-between px-4 py-2 sm:py-0 gap-3 bg-charcoal-light flex-shrink-0">
+                    <!-- Recent Responses -->
+                    <div class="flex items-center gap-2 overflow-x-auto flex-1">
+                        <span class="text-xs text-text-muted flex-shrink-0">RECENT:</span>
+                        <div class="flex gap-1">
+                            <template x-for="(response, idx) in recentResponses.slice(0, 10)" :key="idx">
+                                <div class="response-chip" :class="getResponseClass(response)"
+                                    :title="formatTime(response.time)" x-text="response.correct ? '✓' : '✗'">
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Session Controls (Integrated) -->
+                    <div class="flex gap-2 flex-shrink-0">
+                        <button @click="session.isActive ? togglePause() : startSession()"
+                            class="px-4 py-1.5 font-bold text-xs transition-colors"
+                            :class="!session.isActive || session.isPaused ? 'bg-terminal-green text-charcoal hover:bg-terminal-green-dim' : 'bg-charcoal border border-signal-orange text-signal-orange hover:bg-signal-orange/10'"
+                            x-text="!session.isActive ? 'START' : (session.isPaused ? 'RESUME' : 'PAUSE')">
+                        </button>
+                        <button @click="resetSession"
+                            class="btn-ghost !text-text-muted hover:!border-signal-red hover:!text-signal-red">
+                            RESET
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Virtual Keyboard (Mobile/Tablet Only) -->
+                <div class="lg:hidden grid grid-cols-3 gap-1 p-2 bg-charcoal border-t border-charcoal-border select-none"
+                    x-show="session.isActive && !session.isPaused">
+                    <template x-for="key in virtualKeys" :key="key">
+                        <button @click="inputKey(key)"
+                            class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors">
+                            <span x-text="key"></span>
+                        </button>
+                    </template>
+                    <button @click="inputKey('backspace')"
+                        class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-signal-red active:text-white transition-colors group">
+                        <svg class="w-6 h-6 mx-auto">
+                            <use href="#icon-backspace" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Feedback Console (Relocated) -->
+                <div class="p-2 sm:p-4 bg-charcoal">
+                    <div class="border border-charcoal-border bg-charcoal-light flex flex-col shadow-inner">
+                        <div class="panel-header">
+                            <span class="text-xs text-text-muted font-medium tracking-wide">FEEDBACK CONSOLE</span>
+                        </div>
+                        <div class="h-[250px] sm:h-[400px] overflow-y-auto p-4 text-xs font-mono space-y-2 bg-black/20"
+                            x-ref="console">
+                            <template x-for="(entry, idx) in consoleLogs" :key="idx">
+                                <div class="leading-relaxed border-l-2 pl-3"
+                                    :class="[entry.colorClass, entry.colorClass.replace('text-', 'border-')]"
+                                    x-text="entry.text"></div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════════
+             RIGHT PANEL - Analytics & Performance
+             ═══════════════════════════════════════════════════════════════════════════ -->
+        <aside :class="analyticsOpen ? 'translate-x-0' : 'translate-x-full'"
+            class="sidebar-base right-0 border-l border-charcoal-border lg:relative lg:translate-x-0 translate-x-full"
+            x-cloak>
+            <!-- Analytics Header -->
+            <div class="panel-header">
+                <span class="text-xs text-text-muted font-medium tracking-wide">PERFORMANCE ANALYTICS</span>
+                <button @click="analyticsOpen = false" class="close-btn lg:hidden">&times;</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scrollbar">
+
+                <!-- Latency Sparkline -->
+                <div class="panel-section">
+                    <div class="panel-section-title">
+                        <span>LATENCY TREND (LAST 20)</span>
+                        <span class="text-terminal-green" x-text="sparklineAvg"></span>
+                    </div>
+                    <div class="h-16 bg-charcoal border border-charcoal-border relative">
+                        <svg class="w-full h-full" preserveAspectRatio="none" x-ref="sparklineSvg">
+                            <path class="sparkline stroke-terminal-green" stroke-width="1.5" :d="sparklinePath"
+                                fill="none" />
+                            <line class="stroke-signal-orange opacity-50" stroke-width="1" stroke-dasharray="4,2" x1="0"
+                                x2="100%" y1="50%" y2="50%" />
+                        </svg>
+                        <div class="absolute bottom-1 right-1 text-xs text-text-dim">ms</div>
+                    </div>
+                </div>
+
+                <!-- Heatmap Grid -->
+                <div class="panel-section cursor-pointer hover:bg-charcoal-light/10 transition-colors"
+                    @click="heatmapExpanded = !heatmapExpanded">
+                    <div class="panel-section-title">
+                        <span class="transition-all duration-300"
+                            x-text="heatmapExpanded ? '28-DAY ACTIVITY' : '7-DAY ACTIVITY'"></span>
+                        <span class="text-text-secondary" x-text="heatmapTotal + ' problems'"></span>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1">
+                        <template x-for="cell in heatmapCells" :key="cell.date">
+                            <div class="heatmap-cell w-full aspect-square border border-charcoal-border relative group"
+                                :class="cell.colorClass">
+                                <!-- Detail Tooltip on Hover -->
+                                <div
+                                    class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-charcoal-border shadow-xl">
+                                    <span x-text="cell.date"></span>: <span class="text-terminal-green font-bold"
+                                        x-text="cell.count"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="flex justify-between mt-1 text-xs text-text-dim">
+                        <span>Less</span>
+                        <div class="flex gap-1">
+                            <div class="w-3 h-3 bg-charcoal-lighter border border-charcoal-border"></div>
+                            <div class="w-3 h-3 bg-terminal-green-dark"></div>
+                            <div class="w-3 h-3 bg-terminal-green-dim"></div>
+                            <div class="w-3 h-3 bg-terminal-green"></div>
+                        </div>
+                        <span>More</span>
+                    </div>
+                </div>
+
+                <!-- Performance Breakdown -->
+                <div class="p-3 border-b border-charcoal-border">
+                    <div class="text-xs text-text-muted mb-2">PERFORMANCE BREAKDOWN</div>
+                    <div class="space-y-2">
+                        <template x-for="perf in performanceBreakdown" :key="perf.label">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-text-secondary" x-text="perf.label"></span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-32 h-2 bg-charcoal-lighter">
+                                        <div class="h-full transition-all duration-300" :class="perf.barClass"
+                                            :style="'width: ' + perf.percent + '%'"></div>
+                                    </div>
+                                    <span class="text-xs w-8 text-right" :class="perf.textClass"
+                                        x-text="perf.percent + '%'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- SM-2 Queue Status -->
+                <div class="panel-section">
+                    <div class="panel-section-title">
+                        <span>SRS QUEUE STATUS</span>
+                        <button @click="updateSRSDisplay"
+                            class="text-xs text-text-dim hover:text-terminal-green">↻</button>
+                    </div>
+                    <div class="stats-grid grid-cols-3">
+                        <template x-for="srs in srsDisplay" :key="srs.label">
+                            <div class="stat-box">
+                                <div class="text-xs text-text-muted" x-text="srs.label"></div>
+                                <div class="text-lg font-bold" :class="srs.colorClass" x-text="srs.value"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Category Stats (Moved from Left Panel) -->
+                <div class="panel-section bg-charcoal-lighter">
+                    <div class="panel-section-title">CATEGORY STATS</div>
+                    <div class="stats-grid grid-cols-2 text-xs">
+                        <template x-for="stat in categoryStatsDisplay" :key="stat.label">
+                            <div class="stat-box">
+                                <div class="text-text-muted" x-text="stat.label"></div>
+                                <div class="font-bold text-lg" :class="stat.colorClass" x-text="stat.value"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+
+
+            </div>
+        </aside>
+    </main>
+
+
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════════
+         BOTTOM STATUS BAR
+         ═══════════════════════════════════════════════════════════════════════════════ -->
+
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════════
+         SETTINGS MODAL
+         ═══════════════════════════════════════════════════════════════════════════════ -->
+    <div x-show="settingsOpen" x-cloak x-transition.opacity @keydown.escape.window="settingsOpen = false"
+        class="modal-backdrop">
+        <div class="bg-charcoal border border-charcoal-border w-full max-w-[500px] mx-4 max-h-[90vh] overflow-hidden flex flex-col"
+            @click.outside="settingsOpen = false">
+            <div class="panel-header !h-10">
+                <span class="text-sm font-medium">SETTINGS</span>
+                <button @click="settingsOpen = false" class="close-btn">&times;</button>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+                <!-- Timing Settings -->
+                <div>
+                    <div class="panel-section-title">TIMING COEFFICIENTS</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <template x-for="setting in timingSettings" :key="setting.key">
+                            <label
+                                class="flex items-center justify-between bg-charcoal-light p-2 border border-charcoal-border">
+                                <span class="text-xs" x-text="setting.label"></span>
+                                <input type="number" x-model.number="config.timing[setting.key]" @change="saveSettings"
+                                    :step="setting.step" :min="setting.min" :max="setting.max"
+                                    class="w-16 input-field text-right">
+                            </label>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Display Settings -->
+                <div>
+                    <div class="text-xs text-text-muted mb-2">DISPLAY</div>
+                    <div class="space-y-2">
+                        <template x-for="setting in displaySettings" :key="setting.key">
+                            <label
+                                class="flex items-center justify-between bg-charcoal-light p-2 border border-charcoal-border">
+                                <span class="text-xs" x-text="setting.label"></span>
+                                <input type="checkbox" x-model="config.display[setting.key]" @change="saveSettings"
+                                    class="w-4 h-4 accent-terminal-green">
+                            </label>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Data Management -->
+                <div>
+                    <div class="panel-section-title">DATA MANAGEMENT</div>
+                    <div class="flex gap-2">
+                        <button @click="exportData"
+                            class="btn-ghost flex-1 hover:!border-terminal-green hover:!text-terminal-green">
+                            EXPORT DATA
+                        </button>
+                        <button @click="importData"
+                            class="btn-ghost flex-1 hover:!border-signal-orange hover:!text-signal-orange">
+                            IMPORT DATA
+                        </button>
+                        <button @click="clearData"
+                            class="btn-ghost flex-1 !border-signal-red !text-signal-red hover:!bg-signal-red hover:!text-charcoal">
+                            CLEAR ALL
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

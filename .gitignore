@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+.env
+.DS_Store
+dist/
+build/
+.wrangler/
+
+# Bundling tools
+bundle_code.py
+all_code.txt
+blueprint.md
