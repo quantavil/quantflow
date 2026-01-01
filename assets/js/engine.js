@@ -280,57 +280,158 @@ class ComplexityCalculator {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ELO SYSTEM
+// ARCADE SYSTEM (Replaces Elo)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class EloSystem {
+class ArcadeSystem {
     constructor() {
-        this.ratings = {};
-        this.defaultRating = 1000;
-        this.kFactor = 32;
-        this.load();
+        this.sessionScore = 0;
+        this.streak = 0;
+        this.difficulty = 0.0; // 0.0 to 1.0
+        this.totalXP = this.loadTotalXP();
     }
 
-    getRating(category) {
-        return this.ratings[category] || this.defaultRating;
+    getDifficulty() {
+        return this.difficulty;
     }
 
-    getRank(rating) {
-        if (rating < 800) return 'Novice';
-        if (rating < 1000) return 'Apprentice';
-        if (rating < 1200) return 'Practitioner';
-        if (rating < 1400) return 'Scholar';
-        if (rating < 1600) return 'Expert';
-        if (rating < 1800) return 'Master';
-        return 'Grandmaster';
+    getMultiplier() {
+        // 1.0 at streak 0, up to 3.0 at streak 20+
+        return 1.0 + Math.min(this.streak * 0.1, 2.0);
     }
 
-    update(category, tierDifficulty, score) {
-        const currentRating = this.getRating(category);
-        const expectedScore = 1 / (1 + Math.pow(10, (tierDifficulty - currentRating) / 400));
-        const newRating = currentRating + this.kFactor * (score - expectedScore);
+    onCorrect(basePoints, complexity, speedRatio) {
+        this.streak++;
+        this.updateDifficulty();
 
-        this.ratings[category] = Math.max(100, newRating);
-        this.save();
+        // Speed bonus: 2.0 if very fast, 1.5 if under par, 1.0 otherwise
+        const speedBonus = speedRatio >= 1.5 ? 2.0 : speedRatio >= 1.0 ? 1.5 : 1.0;
+        const multiplier = this.getMultiplier();
+        const points = Math.round(basePoints * complexity * speedBonus * multiplier);
+
+        this.sessionScore += points;
+        this.totalXP += points;
+        this.saveTotalXP();
 
         return {
-            old: currentRating,
-            new: this.ratings[category],
-            change: this.ratings[category] - currentRating
+            points,
+            multiplier,
+            streak: this.streak,
+            speedBonus,
+            sessionScore: this.sessionScore,
+            totalXP: this.totalXP
         };
     }
 
-    save() {
-        try {
-            localStorage.setItem('quantflow_elo', JSON.stringify(this.ratings));
-        } catch (e) { console.error('[ELO] Save failed:', e); }
+    onError() {
+        this.streak = 0;
+        this.difficulty = Math.max(0, this.difficulty - 0.3);
+
+        return {
+            streak: 0,
+            multiplier: 1.0,
+            sessionScore: this.sessionScore,
+            totalXP: this.totalXP
+        };
     }
 
-    load() {
+    updateDifficulty() {
+        // Streak 0-4: 0.0-0.4 (easy)
+        // Streak 5-9: 0.5-0.9 (balanced)
+        // Streak 10+: 1.0 (max complexity)
+        if (this.streak >= 10) {
+            this.difficulty = 1.0;
+        } else if (this.streak >= 5) {
+            this.difficulty = 0.5 + (this.streak - 5) * 0.1;
+        } else {
+            this.difficulty = this.streak * 0.1;
+        }
+    }
+
+    reset() {
+        this.sessionScore = 0;
+        this.streak = 0;
+        this.difficulty = 0.0;
+    }
+
+    loadTotalXP() {
         try {
-            const data = localStorage.getItem('quantflow_elo');
-            if (data) this.ratings = JSON.parse(data);
-        } catch (e) { this.ratings = {}; }
+            const data = localStorage.getItem('quantflow_totalxp');
+            return data ? parseInt(data, 10) : 0;
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    saveTotalXP() {
+        try {
+            localStorage.setItem('quantflow_totalxp', this.totalXP.toString());
+        } catch (e) {
+            console.error('[ARCADE] Save failed:', e);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DIFFICULTY CONTROLLER (Intra-tier difficulty scaling)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class DifficultyController {
+    static BASE_POINTS = 10;
+
+    // Apply difficulty modifiers to question generation parameters
+    static getModifiers(difficulty) {
+        return {
+            forceCarry: difficulty >= 0.7,
+            forceBorrow: difficulty >= 0.7,
+            preferLargeNumbers: difficulty >= 0.5,
+            preferEdgeCases: difficulty >= 0.8  // Numbers near 10, 100, etc.
+        };
+    }
+
+    // Regenerate number to force carry/borrow if needed
+    static forceCarryNumber(digits, existingNum) {
+        // Generate a number that will likely cause a carry when added
+        const base = Utils.generateNumberWithDigits(digits);
+        // Make sure at least one column will cause a carry (digit + digit >= 10)
+        const ones = base % 10;
+        if (ones < 5) {
+            return base + (5 - ones); // Ensure ones digit is 5+
+        }
+        return base;
+    }
+
+    static forceBorrowNumber(digits, larger) {
+        // Generate a number where subtraction requires borrowing
+        const base = Utils.generateNumberWithDigits(digits);
+        const largerOnes = larger % 10;
+        const baseOnes = base % 10;
+
+        // Ensure base ones digit > larger ones digit to force borrow
+        if (baseOnes <= largerOnes && base < larger) {
+            const adjustment = Math.min(9 - baseOnes, largerOnes - baseOnes + 1);
+            return base + adjustment;
+        }
+        return base;
+    }
+
+    static generateEdgeCaseNumber(digits) {
+        // Numbers near boundaries: 9, 10, 99, 100, etc.
+        const boundaries = [10, 100, 1000, 10000];
+        const validBoundaries = boundaries.filter(b =>
+            Utils.countDigits(b) <= digits + 1 && Utils.countDigits(b) >= digits - 1
+        );
+
+        if (validBoundaries.length > 0) {
+            const boundary = validBoundaries[Utils.randomInt(0, validBoundaries.length - 1)];
+            const offset = Utils.randomInt(-2, 2);
+            const result = boundary + offset;
+            if (result > 0 && Utils.countDigits(result) === digits) {
+                return result;
+            }
+        }
+
+        return Utils.generateNumberWithDigits(digits);
     }
 }
 
@@ -390,9 +491,7 @@ class ParTimeCalculator {
         // Simple blend logic for now - can be made more sophisticated
         const effectiveSpeed = (catSpeed * 0.7) + (globalSpeed * 0.3);
 
-        const eloModifier = 1500 / Math.max(100, this.profile.elo.getRating(cat));
-
-        const thinkingTime = complexityPoints * effectiveSpeed * eloModifier;
+        const thinkingTime = complexityPoints * effectiveSpeed;
         const rawPar = thinkingTime + (this.profile.baseReaction || 0.4);
 
         // Flow state buffer (target 85% of max capability)
@@ -654,9 +753,8 @@ const QuestionGenerator = {
 
 class Engine {
     constructor() {
-        this.elo = new EloSystem();
+        this.arcade = new ArcadeSystem();
         this.profile = {
-            elo: this.elo,
             speedFactor: 1.0,
             categorySpeed: {},
             baseReaction: 0.4
@@ -702,35 +800,37 @@ class Engine {
 
         q.complexity = complexity;
         q.targetTime = par;
+        q.difficulty = this.arcade.getDifficulty();
 
         return q;
     }
 
     submitAnswer(question, timeTaken, isCorrect) {
-        // Update Elo
-        const tier = OPERATIONS[question.category].tiers.find(t => t.id === question.tier);
-        const difficulty = tier ? tier.rating : 1000;
+        const basePoints = DifficultyController.BASE_POINTS;
+        const complexity = question.complexity || 1;
 
-        let score = 0; // Loss
+        let result;
         if (isCorrect) {
-            const ratio = question.targetTime / Math.max(0.1, timeTaken);
-            if (ratio >= 1.0) score = 1.0; // Fast Win
-            else if (ratio >= 0.8) score = 0.7; // Win but slow
-            else score = 0.5; // Correct but very slow
-        }
+            // Speed ratio: >1 means faster than par
+            const speedRatio = question.targetTime / Math.max(0.1, timeTaken);
 
-        const eloResult = this.elo.update(question.category, difficulty, score);
+            result = this.arcade.onCorrect(basePoints, complexity, speedRatio);
 
-        // Update Speed Factor
-        if (isCorrect) {
-            this.speedUpdater.update(question, timeTaken, isCorrect, question.complexity);
+            // Update Speed Factor
+            this.speedUpdater.update(question, timeTaken, isCorrect, complexity);
             this.saveStats();
+        } else {
+            result = this.arcade.onError();
         }
 
         return {
-            elo: eloResult,
+            ...result,
             speedFactor: this.profile.speedFactor
         };
+    }
+
+    resetSession() {
+        this.arcade.reset();
     }
 }
 

@@ -251,13 +251,13 @@ document.addEventListener('alpine:init', () => {
             const catStats = this.getCurrentStats();
             const avgTime = catStats.latencies.length ?
                 this.formatTime(catStats.latencies.reduce((a, b) => a + b, 0) / catStats.latencies.length) : '--';
-            const rating = this.engine.elo.getRating(this.practice.category);
+            const arcade = this.engine.arcade;
 
             return [
-                { label: 'Rating', value: Math.round(rating), colorClass: 'text-terminal-green' },
-                { label: 'Rank', value: this.engine.elo.getRank(rating), colorClass: 'text-signal-orange' },
+                { label: 'Score', value: arcade.sessionScore.toLocaleString(), colorClass: 'text-terminal-green' },
+                { label: 'Multiplier', value: `×${arcade.getMultiplier().toFixed(1)}`, colorClass: 'text-signal-orange' },
                 { label: 'Avg Time', value: avgTime, colorClass: 'text-text-primary' },
-                { label: 'SpeedFactor', value: (this.engine.profile.categorySpeed[this.practice.category] || this.engine.profile.speedFactor).toFixed(2) + 's/pt', colorClass: 'text-text-muted' }
+                { label: 'Total XP', value: arcade.totalXP.toLocaleString(), colorClass: 'text-text-muted' }
             ];
         },
 
@@ -398,7 +398,7 @@ document.addEventListener('alpine:init', () => {
                 this.fetchFromCloud();
             }
 
-            this.log('[SYS] QuantFlow initialized. Engine: Hybrid Elo');
+            this.log('[SYS] QuantFlow initialized. Engine: Arcade Mode');
             if (this.auth.isLoggedIn && this.auth.user) {
                 this.log(`[AUTH] Logged in as ${this.auth.user.userId}`);
             }
@@ -424,7 +424,6 @@ document.addEventListener('alpine:init', () => {
 
             // Initialize default variants
             this.updateVariantsFromDefaults();
-            this.updateTierBasedOnRating();
         },
 
         safeGetStorage(key, defaultValue) {
@@ -525,7 +524,6 @@ document.addEventListener('alpine:init', () => {
                 this.practice.category = value;
                 this.practice.tier = this.operations[value].tiers[0].id;
                 this.updateVariantsFromDefaults();
-                this.updateTierBasedOnRating();
                 this.downgraded = false;
                 this.originalTier = null;
                 this.successAfterDowngrade = 0;
@@ -566,31 +564,6 @@ document.addEventListener('alpine:init', () => {
 
             if (this.practice.variants.length === 0 && this.currentOperation.variants.length > 0) {
                 this.practice.variants = [this.currentOperation.variants[0].id];
-            }
-        },
-
-        updateTierBasedOnRating() {
-            const currentRating = this.engine.elo.getRating(this.practice.category);
-            const tiers = this.currentOperation.tiers;
-
-            let bestTier = tiers[0];
-            let minDiff = Infinity;
-
-            for (const tier of tiers) {
-                const diff = Math.abs((tier.rating || 1000) - currentRating);
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    bestTier = tier;
-                }
-            }
-
-            if (this.practice.tier !== bestTier.id) {
-                const oldTier = tiers.find(t => t.id === this.practice.tier);
-                if (oldTier) {
-                    const direction = (bestTier.rating || 1000) > (oldTier.rating || 1000) ? 'up' : 'down';
-                    this.log(`[ELO] Auto-switched ${direction} to ${bestTier.label}`);
-                }
-                this.practice.tier = bestTier.id;
             }
         },
 
@@ -638,6 +611,9 @@ document.addEventListener('alpine:init', () => {
             this.recentResponses = [];
             this.currentQuestion = null;
             this.userAnswer = '';
+
+            // Reset arcade state (session score, streak, difficulty)
+            this.engine.resetSession();
 
             this.stopTimer();
             this.liveTimer = 0;
@@ -735,8 +711,8 @@ document.addEventListener('alpine:init', () => {
             const engineResult = this.engine.submitAnswer(this.currentQuestion, responseTime, isCorrect);
 
             // Logging
-            if (engineResult) {
-                this.log(`[ELO] Rating: ${Math.round(engineResult.elo.old)} -> ${Math.round(engineResult.elo.new)} (${engineResult.elo.change >= 0 ? '+' : ''}${Math.round(engineResult.elo.change)})`);
+            if (engineResult && isCorrect) {
+                this.log(`[SCORE] +${engineResult.points} pts (×${engineResult.multiplier.toFixed(1)}) | Streak: ${engineResult.streak}`);
             }
 
             this.recordResponse(isCorrect, isFast, responseTime * 1000);
@@ -840,8 +816,6 @@ document.addEventListener('alpine:init', () => {
                 }
             }
 
-            // Auto-adjust tier based on updated rating
-            this.updateTierBasedOnRating();
             this.saveStats();
         },
 
