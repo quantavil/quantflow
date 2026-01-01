@@ -6,6 +6,14 @@ export async function onRequest(context) {
 
     if (!code) return new Response('No code provided', { status: 400 });
 
+    if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
+        return new Response('Error: GitHub OAuth variables not found. Please add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to your Cloudflare Pages settings.', { status: 500 });
+    }
+
+    if (!env.QUANTFLOW_DATA) {
+        return new Response('Error: KV namespace QUANTFLOW_DATA not bound. Please bind a KV namespace in Cloudflare Pages settings.', { status: 500 });
+    }
+
     try {
         // Exchange code for access token
         const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {

@@ -15,6 +15,10 @@ export async function onRequest(context) {
         return new Response('Unauthorized', { status: 401 });
     }
 
+    if (!context.env.QUANTFLOW_DATA) {
+        return new Response('Error: KV namespace QUANTFLOW_DATA not bound. Please bind a KV namespace in Cloudflare Pages settings.', { status: 500, headers: corsHeaders });
+    }
+
     const token = authHeader.split(' ')[1];
     const userId = await context.env.QUANTFLOW_DATA.get(`session:${token}`);
 
