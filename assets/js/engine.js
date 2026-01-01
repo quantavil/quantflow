@@ -288,7 +288,16 @@ class ArcadeSystem {
         this.sessionScore = 0;
         this.streak = 0;
         this.difficulty = 0.0; // 0.0 to 1.0
-        this.totalXP = this.loadTotalXP();
+        this.currentCategory = null;
+
+        // Persistent stats
+        this.totalXP = 0;
+        this.categoryXP = {};
+        this.bestStreak = 0;
+        this.highScore = 0;
+        this.sessionHistory = [];
+
+        this.load();
     }
 
     getDifficulty() {
@@ -300,9 +309,18 @@ class ArcadeSystem {
         return 1.0 + Math.min(this.streak * 0.1, 2.0);
     }
 
-    onCorrect(basePoints, complexity, speedRatio) {
+    setCategory(category) {
+        this.currentCategory = category;
+    }
+
+    onCorrect(basePoints, complexity, speedRatio, category) {
         this.streak++;
         this.updateDifficulty();
+
+        // Update best streak
+        if (this.streak > this.bestStreak) {
+            this.bestStreak = this.streak;
+        }
 
         // Speed bonus: 2.0 if very fast, 1.5 if under par, 1.0 otherwise
         const speedBonus = speedRatio >= 1.5 ? 2.0 : speedRatio >= 1.0 ? 1.5 : 1.0;
@@ -311,7 +329,17 @@ class ArcadeSystem {
 
         this.sessionScore += points;
         this.totalXP += points;
-        this.saveTotalXP();
+
+        // Track category XP
+        const cat = category || this.currentCategory || 'unknown';
+        this.categoryXP[cat] = (this.categoryXP[cat] || 0) + points;
+
+        // Update high score if needed
+        if (this.sessionScore > this.highScore) {
+            this.highScore = this.sessionScore;
+        }
+
+        this.save();
 
         return {
             points,
@@ -319,7 +347,9 @@ class ArcadeSystem {
             streak: this.streak,
             speedBonus,
             sessionScore: this.sessionScore,
-            totalXP: this.totalXP
+            totalXP: this.totalXP,
+            categoryXP: this.categoryXP[cat],
+            bestStreak: this.bestStreak
         };
     }
 
@@ -348,27 +378,68 @@ class ArcadeSystem {
         }
     }
 
+    endSession() {
+        // Save session to history
+        if (this.sessionScore > 0) {
+            this.sessionHistory.unshift({
+                score: this.sessionScore,
+                date: new Date().toISOString(),
+                category: this.currentCategory
+            });
+            // Keep last 20 sessions
+            if (this.sessionHistory.length > 20) {
+                this.sessionHistory.pop();
+            }
+            this.save();
+        }
+    }
+
     reset() {
+        // End current session before resetting
+        this.endSession();
+
         this.sessionScore = 0;
         this.streak = 0;
         this.difficulty = 0.0;
     }
 
-    loadTotalXP() {
+    load() {
         try {
-            const data = localStorage.getItem('quantflow_totalxp');
-            return data ? parseInt(data, 10) : 0;
+            const data = localStorage.getItem('quantflow_arcade');
+            if (data) {
+                const parsed = JSON.parse(data);
+                this.totalXP = parsed.totalXP || 0;
+                this.categoryXP = parsed.categoryXP || {};
+                this.bestStreak = parsed.bestStreak || 0;
+                this.highScore = parsed.highScore || 0;
+                this.sessionHistory = parsed.sessionHistory || [];
+            }
         } catch (e) {
-            return 0;
+            console.error('[ARCADE] Load failed:', e);
         }
     }
 
-    saveTotalXP() {
+    save() {
         try {
-            localStorage.setItem('quantflow_totalxp', this.totalXP.toString());
+            localStorage.setItem('quantflow_arcade', JSON.stringify({
+                totalXP: this.totalXP,
+                categoryXP: this.categoryXP,
+                bestStreak: this.bestStreak,
+                highScore: this.highScore,
+                sessionHistory: this.sessionHistory
+            }));
         } catch (e) {
             console.error('[ARCADE] Save failed:', e);
         }
+    }
+
+    // Getters for UI
+    getCategoryXP(category) {
+        return this.categoryXP[category] || 0;
+    }
+
+    getRecentSessions(count = 5) {
+        return this.sessionHistory.slice(0, count);
     }
 }
 
@@ -506,7 +577,11 @@ class ParTimeCalculator {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const QuestionGenerator = {
-    generate(category, tier, variants) {
+    // Difficulty parameter passed from Engine based on current streak
+    currentDifficulty: 0,
+
+    generate(category, tier, variants, difficulty = 0) {
+        this.currentDifficulty = difficulty;
         const gen = this[category];
         return gen ? gen.call(this, tier, variants) : null;
     },
@@ -529,8 +604,25 @@ const QuestionGenerator = {
         const tierData = this._getTierData('addition', tier);
         if (!tierData) return null;
 
+        const mods = DifficultyController.getModifiers(this.currentDifficulty);
+
         let a = Utils.generateNumberWithDigits(tierData.digits[0]);
         let b = Utils.generateNumberWithDigits(tierData.digits[1]);
+
+        // At high difficulty, force carries
+        if (mods.forceCarry && !variants.includes('decimals')) {
+            // Regenerate if no carry exists
+            let attempts = 0;
+            while (!Utils.hasCarryAddition(a, b) && attempts < 5) {
+                b = DifficultyController.forceCarryNumber(tierData.digits[1], a);
+                attempts++;
+            }
+        }
+
+        // Edge cases at very high difficulty
+        if (mods.preferEdgeCases && Math.random() < 0.3) {
+            a = DifficultyController.generateEdgeCaseNumber(tierData.digits[0]);
+        }
 
         if (variants.includes('with_negatives') && Math.random() < 0.3) {
             const flip = Math.random();
@@ -551,10 +643,29 @@ const QuestionGenerator = {
         const tierData = this._getTierData('subtraction', tier);
         if (!tierData) return null;
 
+        const mods = DifficultyController.getModifiers(this.currentDifficulty);
+
         let a = Utils.generateNumberWithDigits(tierData.digits[0]);
         let b = Utils.generateNumberWithDigits(tierData.digits[1]);
 
         if (!variants.includes('allow_negative') && a < b) [a, b] = [b, a];
+
+        // At high difficulty, force borrows
+        if (mods.forceBorrow && !variants.includes('decimals')) {
+            let attempts = 0;
+            while (!Utils.hasBorrowSubtraction(a, b) && attempts < 5) {
+                b = DifficultyController.forceBorrowNumber(tierData.digits[1], a);
+                if (b > a && !variants.includes('allow_negative')) [a, b] = [b, a];
+                attempts++;
+            }
+        }
+
+        // Edge cases at very high difficulty
+        if (mods.preferEdgeCases && Math.random() < 0.3) {
+            a = DifficultyController.generateEdgeCaseNumber(tierData.digits[0]);
+            if (a < b && !variants.includes('allow_negative')) [a, b] = [b, a];
+        }
+
         if (variants.includes('decimals')) {
             a = Utils.randomFloat(a * 0.1, a * 1.1, 1);
             b = Utils.randomFloat(b * 0.1, b * 0.9, 1);
@@ -791,7 +902,10 @@ class Engine {
     }
 
     generateQuestion(category, tier, variants) {
-        const q = QuestionGenerator.generate(category, tier, variants);
+        // Set current category for XP tracking
+        this.arcade.setCategory(category);
+
+        const q = QuestionGenerator.generate(category, tier, variants, this.arcade.getDifficulty());
         if (!q) return null;
 
         // Calculate metadata
@@ -814,7 +928,7 @@ class Engine {
             // Speed ratio: >1 means faster than par
             const speedRatio = question.targetTime / Math.max(0.1, timeTaken);
 
-            result = this.arcade.onCorrect(basePoints, complexity, speedRatio);
+            result = this.arcade.onCorrect(basePoints, complexity, speedRatio, question.category);
 
             // Update Speed Factor
             this.speedUpdater.update(question, timeTaken, isCorrect, complexity);
