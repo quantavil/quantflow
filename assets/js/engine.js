@@ -287,7 +287,6 @@ class ArcadeSystem {
     constructor() {
         this.sessionScore = 0;
         this.streak = 0;
-        this.difficulty = 0.0; // 0.0 to 1.0
         this.currentCategory = null;
 
         // Persistent stats
@@ -298,10 +297,6 @@ class ArcadeSystem {
         this.sessionHistory = [];
 
         this.load();
-    }
-
-    getDifficulty() {
-        return this.difficulty;
     }
 
     getMultiplier() {
@@ -315,7 +310,6 @@ class ArcadeSystem {
 
     onCorrect(basePoints, complexity, speedRatio, category) {
         this.streak++;
-        this.updateDifficulty();
 
         // Update best streak
         if (this.streak > this.bestStreak) {
@@ -355,7 +349,6 @@ class ArcadeSystem {
 
     onError() {
         this.streak = 0;
-        this.difficulty = Math.max(0, this.difficulty - 0.3);
 
         return {
             streak: 0,
@@ -363,19 +356,6 @@ class ArcadeSystem {
             sessionScore: this.sessionScore,
             totalXP: this.totalXP
         };
-    }
-
-    updateDifficulty() {
-        // Streak 0-4: 0.0-0.4 (easy)
-        // Streak 5-9: 0.5-0.9 (balanced)
-        // Streak 10+: 1.0 (max complexity)
-        if (this.streak >= 10) {
-            this.difficulty = 1.0;
-        } else if (this.streak >= 5) {
-            this.difficulty = 0.5 + (this.streak - 5) * 0.1;
-        } else {
-            this.difficulty = this.streak * 0.1;
-        }
     }
 
     endSession() {
@@ -400,7 +380,6 @@ class ArcadeSystem {
 
         this.sessionScore = 0;
         this.streak = 0;
-        this.difficulty = 0.0;
     }
 
     load() {
@@ -443,68 +422,7 @@ class ArcadeSystem {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// DIFFICULTY CONTROLLER (Intra-tier difficulty scaling)
-// ═══════════════════════════════════════════════════════════════════════════════
 
-class DifficultyController {
-    static BASE_POINTS = 10;
-
-    // Apply difficulty modifiers to question generation parameters
-    static getModifiers(difficulty) {
-        return {
-            forceCarry: difficulty >= 0.7,
-            forceBorrow: difficulty >= 0.7,
-            preferLargeNumbers: difficulty >= 0.5,
-            preferEdgeCases: difficulty >= 0.8  // Numbers near 10, 100, etc.
-        };
-    }
-
-    // Regenerate number to force carry/borrow if needed
-    static forceCarryNumber(digits, existingNum) {
-        // Generate a number that will likely cause a carry when added
-        const base = Utils.generateNumberWithDigits(digits);
-        // Make sure at least one column will cause a carry (digit + digit >= 10)
-        const ones = base % 10;
-        if (ones < 5) {
-            return base + (5 - ones); // Ensure ones digit is 5+
-        }
-        return base;
-    }
-
-    static forceBorrowNumber(digits, larger) {
-        // Generate a number where subtraction requires borrowing
-        const base = Utils.generateNumberWithDigits(digits);
-        const largerOnes = larger % 10;
-        const baseOnes = base % 10;
-
-        // Ensure base ones digit > larger ones digit to force borrow
-        if (baseOnes <= largerOnes && base < larger) {
-            const adjustment = Math.min(9 - baseOnes, largerOnes - baseOnes + 1);
-            return base + adjustment;
-        }
-        return base;
-    }
-
-    static generateEdgeCaseNumber(digits) {
-        // Numbers near boundaries: 9, 10, 99, 100, etc.
-        const boundaries = [10, 100, 1000, 10000];
-        const validBoundaries = boundaries.filter(b =>
-            Utils.countDigits(b) <= digits + 1 && Utils.countDigits(b) >= digits - 1
-        );
-
-        if (validBoundaries.length > 0) {
-            const boundary = validBoundaries[Utils.randomInt(0, validBoundaries.length - 1)];
-            const offset = Utils.randomInt(-2, 2);
-            const result = boundary + offset;
-            if (result > 0 && Utils.countDigits(result) === digits) {
-                return result;
-            }
-        }
-
-        return Utils.generateNumberWithDigits(digits);
-    }
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SPEED FACTOR UPDATER
@@ -577,11 +495,7 @@ class ParTimeCalculator {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const QuestionGenerator = {
-    // Difficulty parameter passed from Engine based on current streak
-    currentDifficulty: 0,
-
-    generate(category, tier, variants, difficulty = 0) {
-        this.currentDifficulty = difficulty;
+    generate(category, tier, variants) {
         const gen = this[category];
         return gen ? gen.call(this, tier, variants) : null;
     },
@@ -604,25 +518,8 @@ const QuestionGenerator = {
         const tierData = this._getTierData('addition', tier);
         if (!tierData) return null;
 
-        const mods = DifficultyController.getModifiers(this.currentDifficulty);
-
         let a = Utils.generateNumberWithDigits(tierData.digits[0]);
         let b = Utils.generateNumberWithDigits(tierData.digits[1]);
-
-        // At high difficulty, force carries
-        if (mods.forceCarry && !variants.includes('decimals')) {
-            // Regenerate if no carry exists
-            let attempts = 0;
-            while (!Utils.hasCarryAddition(a, b) && attempts < 5) {
-                b = DifficultyController.forceCarryNumber(tierData.digits[1], a);
-                attempts++;
-            }
-        }
-
-        // Edge cases at very high difficulty
-        if (mods.preferEdgeCases && Math.random() < 0.3) {
-            a = DifficultyController.generateEdgeCaseNumber(tierData.digits[0]);
-        }
 
         if (variants.includes('with_negatives') && Math.random() < 0.3) {
             const flip = Math.random();
@@ -643,28 +540,10 @@ const QuestionGenerator = {
         const tierData = this._getTierData('subtraction', tier);
         if (!tierData) return null;
 
-        const mods = DifficultyController.getModifiers(this.currentDifficulty);
-
         let a = Utils.generateNumberWithDigits(tierData.digits[0]);
         let b = Utils.generateNumberWithDigits(tierData.digits[1]);
 
         if (!variants.includes('allow_negative') && a < b) [a, b] = [b, a];
-
-        // At high difficulty, force borrows
-        if (mods.forceBorrow && !variants.includes('decimals')) {
-            let attempts = 0;
-            while (!Utils.hasBorrowSubtraction(a, b) && attempts < 5) {
-                b = DifficultyController.forceBorrowNumber(tierData.digits[1], a);
-                if (b > a && !variants.includes('allow_negative')) [a, b] = [b, a];
-                attempts++;
-            }
-        }
-
-        // Edge cases at very high difficulty
-        if (mods.preferEdgeCases && Math.random() < 0.3) {
-            a = DifficultyController.generateEdgeCaseNumber(tierData.digits[0]);
-            if (a < b && !variants.includes('allow_negative')) [a, b] = [b, a];
-        }
 
         if (variants.includes('decimals')) {
             a = Utils.randomFloat(a * 0.1, a * 1.1, 1);
@@ -905,7 +784,7 @@ class Engine {
         // Set current category for XP tracking
         this.arcade.setCategory(category);
 
-        const q = QuestionGenerator.generate(category, tier, variants, this.arcade.getDifficulty());
+        const q = QuestionGenerator.generate(category, tier, variants);
         if (!q) return null;
 
         // Calculate metadata
@@ -914,13 +793,12 @@ class Engine {
 
         q.complexity = complexity;
         q.targetTime = par;
-        q.difficulty = this.arcade.getDifficulty();
 
         return q;
     }
 
     submitAnswer(question, timeTaken, isCorrect) {
-        const basePoints = DifficultyController.BASE_POINTS;
+        const basePoints = 10;
         const complexity = question.complexity || 1;
 
         let result;
