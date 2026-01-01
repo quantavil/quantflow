@@ -35,9 +35,17 @@ No build tools are required.
 
 ## Deployment
 
-This project is optimized for **Cloudflare Pages**.
-1. Connect your repository to Cloudflare Pages.
-2. Set Environment Variables for GitHub OAuth (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`).
-3. Bind the KV namespace `QUANTFLOW_DATA` in the Functions settings.
+This project is optimized for **Cloudflare Pages** using the Git integration flow.
 
-**Note**: No build command is required. Leave the Build Command and Build Output Directory empty.
+### Build Settings
+1. **Framework Preset**: `None`
+2. **Build Command**: *Leave Empty*
+3. **Build Output Directory**: `/`
+4. **Root Directory**: `/`
+
+### Environment Variables & Bindings
+1. **Environment Variables**: Add `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in the dashboard under Settings > Variables.
+2. **KV Bindings**: Bind a KV namespace to the variable name `QUANTFLOW_DATA` under Settings > Functions.
+
+### Automatic CI/CD
+Once connected, every push to the `main` branch on GitHub will automatically trigger a deployment to your Cloudflare Pages domain.
