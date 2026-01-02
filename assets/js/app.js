@@ -283,7 +283,7 @@ document.addEventListener('alpine:init', () => {
 
         // Error handling
         consecutiveErrors: 0,
-        errorQueue: [],
+        questionQueue: [], // Replaced errorQueue with questionQueue for circular stack
         downgraded: false,
         originalTier: null,
         successAfterDowngrade: 0,
@@ -546,6 +546,37 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        generateUniqueBatch(count) {
+            this.questionQueue = [];
+            const MAX_RETRIES = 5;
+            const seen = new Set();
+
+            for (let i = 0; i < count; i++) {
+                let q = null;
+                let attempts = 0;
+
+                // Try to generate a unique question
+                while (attempts < MAX_RETRIES) {
+                    q = this.engine.generateQuestion(
+                        this.practice.category,
+                        this.practice.tier,
+                        this.practice.variants
+                    );
+
+                    if (q && !seen.has(q.display)) {
+                        seen.add(q.display);
+                        break;
+                    }
+                    attempts++;
+                }
+
+                // If we failed to get a unique one after retries, just take the last generated one
+                if (q) this.questionQueue.push(q);
+            }
+
+            this.log(`[SYS] Generated ${this.questionQueue.length} questions.`);
+        },
+
         safeSetStorage(key, value) {
             try {
                 localStorage.setItem(key, JSON.stringify(value));
@@ -653,7 +684,13 @@ document.addEventListener('alpine:init', () => {
                 }
             }
 
-            if (this.session.isActive) this.generateQuestion();
+            if (this.session.isActive) {
+                // Regenerate queue if settings change mid-session?
+                // For now, let's just log a warning or restart session logic if needed.
+                // But simplified: just restart session to apply new settings to full queue
+                this.resetSession();
+                this.startSession();
+            }
 
             // Persist practice state
             this.savePracticeState();
@@ -740,6 +777,10 @@ document.addEventListener('alpine:init', () => {
             this.resetRoundStats();
 
             this.log(`[SYS] Round started: ${this.round.targetCount} questions | ${this.practice.category.toUpperCase()}`);
+
+            // Pre-generate unique batch
+            this.generateUniqueBatch(this.round.targetCount);
+
             this.generateQuestion();
             this.$nextTick(() => this.$refs.answerInput?.focus());
         },
@@ -765,7 +806,7 @@ document.addEventListener('alpine:init', () => {
             this.session.isActive = false;
             this.session.isPaused = false;
             this.consecutiveErrors = 0;
-            this.errorQueue = [];
+            this.questionQueue = [];
             this.downgraded = false;
             this.successAfterDowngrade = 0;
             this.latencies = [];
@@ -834,17 +875,16 @@ document.addEventListener('alpine:init', () => {
         // ═══════════════════════════════════════════════════════════════════════
 
         generateQuestion() {
-            if (this.errorQueue.length > 0) {
-                this.currentQuestion = this.errorQueue.pop();
-                // Target time stays the same from original question
-                this.log(`[QUEUE] Retrying: ${this.currentQuestion.display}`);
-            } else {
-                this.currentQuestion = this.engine.generateQuestion(
-                    this.practice.category,
-                    this.practice.tier,
-                    this.practice.variants
-                );
+            if (this.questionQueue.length === 0) {
+                // Queue empty means round technically finished, though completeRound calls usually handle this
+                return;
             }
+
+            // Pull next question from the FRONT of the queue
+            this.currentQuestion = this.questionQueue.shift();
+
+            // Log if it's a retry (optional distinction)
+            // this.log(`[Q] ${this.currentQuestion.display}`);
 
             if (!this.currentQuestion) {
                 this.log('[ERR] Failed to generate question.');
@@ -1014,18 +1054,23 @@ document.addEventListener('alpine:init', () => {
                     }
                 }
 
-                if (!this.errorQueue.some(eq => eq.display === q.display)) {
-                    this.errorQueue.unshift({ ...q });
-                    if (this.errorQueue.length > 10) this.errorQueue.pop();
-                }
+                // CIRCULAR STACK: Push incorrect question to the BACK of the queue
+                // Create a clone to ensure it's treated as a fresh instance if needed, 
+                // but references are fine. 
+                // IMPORTANT: We do NOT advance round.currentCount later if incorrect.
+
+                this.questionQueue.push({ ...q });
+                this.log(`[QUEUE] Pushed back -> Queue size: ${this.questionQueue.length}`);
             }
 
             // Update round stats
-            this.round.currentCount++;
+            // Only increment currentCount if CORRECT
+
             this.round.stats.latencies.push(responseTimeMs);
             this.round.stats.totalTime += responseTimeMs;
 
             if (isCorrect) {
+                this.round.currentCount++;
                 this.round.stats.correct++;
                 if (isFast) {
                     this.round.stats.fast++;
@@ -1037,6 +1082,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             // Check for round completion
+            // Completed if we have hit the target correct count
             if (this.round.currentCount >= this.round.targetCount) {
                 if (this.nextQuestionTimeout) clearTimeout(this.nextQuestionTimeout);
                 setTimeout(() => {
