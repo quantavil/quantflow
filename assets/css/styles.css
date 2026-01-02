@@ -1,4 +1,5 @@
 :root {
+    /* Colors */
     --terminal-green: #00D26A;
     --terminal-green-dim: #00A854;
     --terminal-green-dark: #004D25;
@@ -9,6 +10,11 @@
     --charcoal-lighter: #2A2A2A;
     --charcoal-border: #333333;
     --text-muted: #888888;
+
+    /* Effects */
+    --glow-green: 0 0 15px rgba(0, 210, 106, 0.3);
+    --glow-green-soft: 0 0 10px rgba(0, 210, 106, 0.2);
+    --transition-fast: all 0.2s ease;
 }
 
 [x-cloak] {
@@ -24,34 +30,26 @@ body {
     scrollbar-gutter: stable;
 }
 
-/* UTILITY CLASSES - COMPONENT PATTERNS */
+/* SHARED COMPONENT RULES */
+.btn-ghost,
+.input-field,
+.category-btn {
+    border: 1px solid var(--charcoal-border);
+    font-size: 0.8125rem;
+    transition: var(--transition-fast);
+}
+
 .btn-ghost {
     padding: 0.375rem 0.75rem;
-    font-size: 0.8125rem;
-    border: 1px solid var(--charcoal-border);
-    transition: all 0.2s ease;
 }
 
 .btn-ghost:hover {
     background-color: var(--charcoal-lighter);
 }
 
-.is-active,
-.btn-active,
-.category-btn.active,
-.tier-btn.active {
-    background-color: var(--terminal-green) !important;
-    color: var(--charcoal) !important;
-    box-shadow: 0 0 15px rgba(0, 210, 106, 0.3);
-    border-color: var(--terminal-green) !important;
-}
-
 .input-field {
     background-color: var(--charcoal);
-    border: 1px solid var(--charcoal-border);
     padding: 0.25rem 0.5rem;
-    font-size: 0.8125rem;
-    transition: all 0.2s ease;
     caret-color: transparent;
 }
 
@@ -61,6 +59,29 @@ body {
     box-shadow: 0 0 0 1px var(--terminal-green), 0 0 20px rgba(0, 210, 106, 0.15);
 }
 
+/* ACTIVE STATES */
+.is-active,
+.btn-active,
+.category-btn.active,
+.tier-btn.active {
+    border-color: var(--terminal-green) !important;
+}
+
+.is-active,
+.btn-active,
+.category-btn.active {
+    background-color: var(--terminal-green) !important;
+    color: var(--charcoal) !important;
+    box-shadow: var(--glow-green);
+}
+
+.tier-btn.active {
+    color: var(--terminal-green) !important;
+    background-color: var(--charcoal-light) !important;
+    box-shadow: var(--glow-green-soft);
+}
+
+/* LAYOUT COMPONENTS */
 .panel-header {
     height: 2.5rem;
     background-color: var(--charcoal-light);
@@ -203,22 +224,25 @@ body {
     }
 }
 
+.flash-success,
+.flash-warning,
+.flash-error {
+    animation: flash 0.4s ease-out;
+}
+
 .flash-success {
     --flash-color: var(--terminal-green);
     --flash-shadow: rgba(0, 210, 106, 0.5);
-    animation: flash 0.4s ease-out;
 }
 
 .flash-warning {
     --flash-color: var(--signal-orange);
     --flash-shadow: rgba(255, 159, 28, 0.5);
-    animation: flash 0.4s ease-out;
 }
 
 .flash-error {
     --flash-color: var(--signal-red);
     --flash-shadow: rgba(255, 75, 75, 0.5);
-    animation: flash 0.4s ease-out;
 }
 
 @keyframes shake {

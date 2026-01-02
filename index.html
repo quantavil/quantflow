@@ -240,7 +240,7 @@
                     </div>
                     <div class="flex flex-wrap gap-1">
                         <template x-for="(tier, idx) in currentOperation.tiers" :key="tier.id">
-                            <button class="btn-ghost" :class="{ 'active': practice.tier === tier.id }"
+                            <button class="btn-ghost tier-btn" :class="{ 'active': practice.tier === tier.id }"
                                 @click="selectTier(tier.id)" x-text="tier.label">
                             </button>
                         </template>
