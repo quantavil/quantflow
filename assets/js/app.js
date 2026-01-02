@@ -684,12 +684,8 @@ document.addEventListener('alpine:init', () => {
                 }
             }
 
-            if (this.session.isActive) {
-                // Regenerate queue if settings change mid-session?
-                // For now, let's just log a warning or restart session logic if needed.
-                // But simplified: just restart session to apply new settings to full queue
+            if (this.session.isActive || type === 'category') {
                 this.resetSession();
-                this.startSession();
             }
 
             // Persist practice state
