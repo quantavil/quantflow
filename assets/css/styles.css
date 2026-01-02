@@ -114,6 +114,7 @@ body {
     inset-block: 0;
     z-index: 60;
     width: 18rem;
+    max-width: 85vw;
     background-color: var(--charcoal);
     display: flex;
     flex-direction: column;
@@ -227,7 +228,7 @@ body {
 .flash-success,
 .flash-warning,
 .flash-error {
-    animation: flash 0.4s ease-out;
+    animation: flash 0.2s cubic-bezier(0, 0, 0.2, 1);
 }
 
 .flash-success {
@@ -269,7 +270,7 @@ body {
 }
 
 .animate-shake {
-    animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+    animation: shake 0.3s cubic-bezier(.36, .07, .19, .97) both;
 }
 
 /* RECENT RESPONSES */

@@ -21,7 +21,9 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1A1A1A">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" type="image/png" href="assets/img/icon-512.png">
+    <link rel="apple-touch-icon" href="assets/img/icon-512.png">
+
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -322,7 +324,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-text-muted">QUEUE</span>
-                        <span class="text-text-primary font-medium" x-text="errorQueue.length"></span>
+                        <span class="text-text-primary font-medium" x-text="questionQueue.length"></span>
                     </div>
                 </div>
             </div>
@@ -360,6 +362,7 @@
                                 x-show="$store.settings.display.showTimer">
                                 <span x-text="liveTimerDisplay"></span><span class="text-sm">s</span>
                             </div>
+
                         </div>
                     </div>
 
@@ -501,6 +504,11 @@
                                 x2="100%" y1="50%" y2="50%" />
                         </svg>
                         <div class="absolute bottom-1 right-1 text-xs text-text-dim">ms</div>
+                        <!-- Axis Labels -->
+                        <div class="absolute top-0.5 left-1 text-[10px] text-text-muted pointer-events-none"
+                            x-show="sparklineLimits.hasData" x-text="formatTime(sparklineLimits.max)"></div>
+                        <div class="absolute bottom-0.5 left-1 text-[10px] text-text-muted pointer-events-none"
+                            x-show="sparklineLimits.hasData" x-text="formatTime(sparklineLimits.min)"></div>
                     </div>
                 </div>
 

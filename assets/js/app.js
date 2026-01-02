@@ -221,18 +221,29 @@ document.addEventListener('alpine:init', () => {
             return borders[this.feedback.type] || 'border border-charcoal-border';
         },
 
+        get sparklineLimits() {
+            const stats = this.getCurrentStats();
+            const data = stats.latencies.slice(-20);
+            if (data.length < 2) return { min: 0, max: 0, hasData: false };
+            return {
+                min: Math.min(...data),
+                max: Math.max(...data),
+                hasData: true
+            };
+        },
+
         get sparklinePath() {
             const stats = this.getCurrentStats();
             const data = stats.latencies.slice(-20);
             if (data.length < 2) return '';
 
             const width = 280, height = 64, padding = 4;
-            const min = Math.min(...data), max = Math.max(...data);
-            const range = max - min || 1;
+            const limits = this.sparklineLimits;
+            const range = limits.max - limits.min || 1;
 
             return 'M' + data.map((val, i) => {
                 const x = padding + (i / (data.length - 1)) * (width - padding * 2);
-                const y = height - padding - ((val - min) / range) * (height - padding * 2);
+                const y = height - padding - ((val - limits.min) / range) * (height - padding * 2);
                 return `${x},${y}`;
             }).join(' L');
         },
