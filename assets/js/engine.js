@@ -7,11 +7,11 @@ const OPERATIONS = {
     addition: {
         symbol: '+',
         tiers: [
-            { id: '1+1', label: '1+1', digits: [1, 1], rating: 800 },
-            { id: '1+2', label: '1+2', digits: [1, 2], rating: 900 },
-            { id: '2+2', label: '2+2', digits: [2, 2], rating: 1000 },
-            { id: '2+3', label: '2+3', digits: [2, 3], rating: 1100 },
-            { id: '3+3', label: '3+3', digits: [3, 3], rating: 1250 }
+            { id: '1+1', label: '1+1', digits: [1, 1], rating: 800, baseTime: 1.0 },
+            { id: '1+2', label: '1+2', digits: [1, 2], rating: 900, baseTime: 1.5 },
+            { id: '2+2', label: '2+2', digits: [2, 2], rating: 1000, baseTime: 2.0 },
+            { id: '2+3', label: '2+3', digits: [2, 3], rating: 1100, baseTime: 2.5 },
+            { id: '3+3', label: '3+3', digits: [3, 3], rating: 1250, baseTime: 3.5 }
         ],
         variants: [
             { id: 'positive', label: 'Positive Only', default: true },
@@ -22,11 +22,11 @@ const OPERATIONS = {
     subtraction: {
         symbol: '−',
         tiers: [
-            { id: '1-1', label: '1−1', digits: [1, 1], rating: 800 },
-            { id: '1-2', label: '1−2', digits: [1, 2], rating: 900 },
-            { id: '2-2', label: '2−2', digits: [2, 2], rating: 1000 },
-            { id: '2-3', label: '2−3', digits: [2, 3], rating: 1100 },
-            { id: '3-3', label: '3−3', digits: [3, 3], rating: 1250 }
+            { id: '1-1', label: '1−1', digits: [1, 1], rating: 800, baseTime: 1.0 },
+            { id: '1-2', label: '1−2', digits: [1, 2], rating: 900, baseTime: 1.5 },
+            { id: '2-2', label: '2−2', digits: [2, 2], rating: 1000, baseTime: 2.5 },
+            { id: '2-3', label: '2−3', digits: [2, 3], rating: 1100, baseTime: 3.0 },
+            { id: '3-3', label: '3−3', digits: [3, 3], rating: 1250, baseTime: 4.0 }
         ],
         variants: [
             { id: 'standard', label: 'Standard', default: true },
@@ -36,10 +36,10 @@ const OPERATIONS = {
     multiplication: {
         symbol: '×',
         tiers: [
-            { id: '1x1', label: '1×1', digits: [1, 1], rating: 800 },
-            { id: '1x2', label: '1×2', digits: [1, 2], rating: 1000 },
-            { id: '2x2', label: '2×2', digits: [2, 2], rating: 1200 },
-            { id: '2x3', label: '2×3', digits: [2, 3], rating: 1400 }
+            { id: '1x1', label: '1×1', digits: [1, 1], rating: 800, baseTime: 1.5 },
+            { id: '1x2', label: '1×2', digits: [1, 2], rating: 1000, baseTime: 2.5 },
+            { id: '2x2', label: '2×2', digits: [2, 2], rating: 1200, baseTime: 4.0 },
+            { id: '2x3', label: '2×3', digits: [2, 3], rating: 1400, baseTime: 6.0 }
         ],
         variants: [
             { id: 'standard', label: 'Standard', default: true },
@@ -50,10 +50,10 @@ const OPERATIONS = {
     division: {
         symbol: '÷',
         tiers: [
-            { id: '2d1', label: '2÷1', digits: [2, 1], rating: 1000 },
-            { id: '3d1', label: '3÷1', digits: [3, 1], rating: 1200 },
-            { id: '3d2', label: '3÷2', digits: [3, 2], rating: 1400 },
-            { id: '4d2', label: '4÷2', digits: [4, 2], rating: 1600 }
+            { id: '2d1', label: '2÷1', digits: [2, 1], rating: 1000, baseTime: 2.0 },
+            { id: '3d1', label: '3÷1', digits: [3, 1], rating: 1200, baseTime: 3.0 },
+            { id: '3d2', label: '3÷2', digits: [3, 2], rating: 1400, baseTime: 5.0 },
+            { id: '4d2', label: '4÷2', digits: [4, 2], rating: 1600, baseTime: 8.0 }
         ],
         variants: [
             { id: 'exact', label: 'Exact Division', default: true },
@@ -64,11 +64,11 @@ const OPERATIONS = {
     powers: {
         symbol: '^',
         tiers: [
-            { id: 'sq_1-10', label: 'Squares 1-10', range: [1, 10], power: 2, rating: 1000 },
-            { id: 'sq_1-20', label: 'Squares 1-20', range: [1, 20], power: 2, rating: 1200 },
-            { id: 'sq_1-30', label: 'Squares 1-30', range: [1, 30], power: 2, rating: 1300 },
-            { id: 'cb_1-10', label: 'Cubes 1-10', range: [1, 10], power: 3, rating: 1400 },
-            { id: 'cb_1-15', label: 'Cubes 1-15', range: [1, 15], power: 3, rating: 1550 }
+            { id: 'sq_1-10', label: 'Squares 1-10', range: [1, 10], power: 2, rating: 1000, baseTime: 1.0 },
+            { id: 'sq_1-20', label: 'Squares 1-20', range: [1, 20], power: 2, rating: 1200, baseTime: 2.0 },
+            { id: 'sq_1-30', label: 'Squares 1-30', range: [1, 30], power: 2, rating: 1300, baseTime: 3.0 },
+            { id: 'cb_1-10', label: 'Cubes 1-10', range: [1, 10], power: 3, rating: 1400, baseTime: 2.5 },
+            { id: 'cb_1-15', label: 'Cubes 1-15', range: [1, 15], power: 3, rating: 1550, baseTime: 4.0 }
         ],
         variants: [
             { id: 'squares', label: 'Squares (n²)', default: true },
@@ -79,11 +79,11 @@ const OPERATIONS = {
     roots: {
         symbol: '√',
         tiers: [
-            { id: 'sqrt_1-100', label: '√1-100', range: [1, 100], type: 'sqrt', rating: 1000 },
-            { id: 'sqrt_1-400', label: '√1-400', range: [1, 400], type: 'sqrt', rating: 1200 },
-            { id: 'sqrt_1-900', label: '√1-900', range: [1, 900], type: 'sqrt', rating: 1350 },
-            { id: 'cbrt_1-1000', label: '∛1-1000', range: [1, 1000], type: 'cbrt', rating: 1500 },
-            { id: 'cbrt_1-3375', label: '∛1-3375', range: [1, 3375], type: 'cbrt', rating: 1650 }
+            { id: 'sqrt_1-100', label: '√1-100', range: [1, 100], type: 'sqrt', rating: 1000, baseTime: 1.5 },
+            { id: 'sqrt_1-400', label: '√1-400', range: [1, 400], type: 'sqrt', rating: 1200, baseTime: 2.5 },
+            { id: 'sqrt_1-900', label: '√1-900', range: [1, 900], type: 'sqrt', rating: 1350, baseTime: 3.5 },
+            { id: 'cbrt_1-1000', label: '∛1-1000', range: [1, 1000], type: 'cbrt', rating: 1500, baseTime: 3.0 },
+            { id: 'cbrt_1-3375', label: '∛1-3375', range: [1, 3375], type: 'cbrt', rating: 1650, baseTime: 4.5 }
         ],
         variants: [
             { id: 'sqrt_perfect', label: 'Perfect Squares', default: true },
@@ -94,9 +94,9 @@ const OPERATIONS = {
     percentages: {
         symbol: '%',
         tiers: [
-            { id: 'simple', label: 'Simple %', difficulty: 1, rating: 1000 },
-            { id: 'medium', label: 'Medium %', difficulty: 2, rating: 1300 },
-            { id: 'complex', label: 'Complex %', difficulty: 3, rating: 1600 }
+            { id: 'simple', label: 'Simple %', difficulty: 1, rating: 1000, baseTime: 2.0 },
+            { id: 'medium', label: 'Medium %', difficulty: 2, rating: 1300, baseTime: 3.0 },
+            { id: 'complex', label: 'Complex %', difficulty: 3, rating: 1600, baseTime: 5.0 }
         ],
         variants: [
             { id: 'x_of_y', label: 'X% of Y', default: true },
@@ -108,9 +108,9 @@ const OPERATIONS = {
     fractions: {
         symbol: '/',
         tiers: [
-            { id: 'simple', label: 'Simple', maxDenom: 10, rating: 1000 },
-            { id: 'medium', label: 'Medium', maxDenom: 20, rating: 1300 },
-            { id: 'complex', label: 'Complex', maxDenom: 50, rating: 1600 }
+            { id: 'simple', label: 'Simple', maxDenom: 10, rating: 1000, baseTime: 3.0 },
+            { id: 'medium', label: 'Medium', maxDenom: 20, rating: 1300, baseTime: 5.0 },
+            { id: 'complex', label: 'Complex', maxDenom: 50, rating: 1600, baseTime: 8.0 }
         ],
         variants: [
             { id: 'add', label: 'Addition', default: true },
@@ -138,7 +138,7 @@ const Utils = {
     },
 
     generateNumberWithDigits(digits) {
-        if (digits === 1) return Utils.randomInt(1, 9);
+        if (digits === 1) return Utils.randomInt(0, 9);
         return Utils.randomInt(Math.pow(10, digits - 1), Math.pow(10, digits) - 1);
     },
 
@@ -280,7 +280,7 @@ class ComplexityCalculator {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ARCADE SYSTEM (Replaces Elo)
+// ARCADE SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class ArcadeSystem {
@@ -422,73 +422,6 @@ class ArcadeSystem {
     }
 }
 
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// SPEED FACTOR UPDATER
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class SpeedFactorUpdater {
-    constructor(profile) {
-        this.profile = profile;
-        this.globalAlpha = 0.10;
-        this.categoryAlpha = 0.15;
-    }
-
-    update(question, actualTimeSeconds, wasCorrect, complexityPoints) {
-        if (!wasCorrect) return;
-
-        const baseReaction = this.profile.baseReaction || 0.4;
-        const thinkingTime = Math.max(0.1, actualTimeSeconds - baseReaction);
-        const observedSpeed = thinkingTime / Math.max(0.1, complexityPoints);
-
-        // Outlier detection
-        const expectedSpeed = this.profile.speedFactor;
-        const ratio = observedSpeed / expectedSpeed;
-
-        if (ratio < 0.2 || ratio > 5.0) return; // Outlier
-
-        // Update global
-        this.profile.speedFactor = this.ema(this.profile.speedFactor, observedSpeed, this.globalAlpha);
-
-        // Update category
-        const cat = question.category;
-        const prevCatSpeed = this.profile.categorySpeed[cat] || this.profile.speedFactor;
-        this.profile.categorySpeed[cat] = this.ema(prevCatSpeed, observedSpeed, this.categoryAlpha);
-    }
-
-    ema(current, newValue, alpha) {
-        return (alpha * newValue) + ((1 - alpha) * current);
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// PAR TIME CALCULATOR
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class ParTimeCalculator {
-    constructor(profile) {
-        this.profile = profile;
-    }
-
-    calculate(question, complexityPoints) {
-        const cat = question.category;
-        // Blended speed: 70% category, 30% global
-        const catSpeed = this.profile.categorySpeed[cat] || this.profile.speedFactor;
-        const globalSpeed = this.profile.speedFactor;
-
-        // Simple blend logic for now - can be made more sophisticated
-        const effectiveSpeed = (catSpeed * 0.7) + (globalSpeed * 0.3);
-
-        const thinkingTime = complexityPoints * effectiveSpeed;
-        const rawPar = thinkingTime + (this.profile.baseReaction || 0.4);
-
-        // Flow state buffer (target 85% of max capability)
-        const targetPar = rawPar * 0.85;
-
-        return Math.max(0.8, Math.min(60, targetPar));
-    }
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUESTION GENERATOR
@@ -744,40 +677,6 @@ const QuestionGenerator = {
 class Engine {
     constructor() {
         this.arcade = new ArcadeSystem();
-        this.profile = {
-            speedFactor: 1.0,
-            categorySpeed: {},
-            baseReaction: 0.4
-        };
-        this.speedUpdater = new SpeedFactorUpdater(this.profile);
-        this.parCalculator = new ParTimeCalculator(this.profile);
-
-        // Load additional stats
-        this.loadStats();
-    }
-
-    loadStats() {
-        try {
-            const data = localStorage.getItem('quantflow_profile');
-            if (data) {
-                const parsed = JSON.parse(data);
-                this.profile.speedFactor = parsed.speedFactor || 1.0;
-                this.profile.categorySpeed = parsed.categorySpeed || {};
-            }
-        } catch (e) {
-            console.error('Failed to load profile', e);
-        }
-    }
-
-    saveStats() {
-        try {
-            localStorage.setItem('quantflow_profile', JSON.stringify({
-                speedFactor: this.profile.speedFactor,
-                categorySpeed: this.profile.categorySpeed
-            }));
-        } catch (e) {
-            console.error('Failed to save profile', e);
-        }
     }
 
     generateQuestion(category, tier, variants) {
@@ -787,12 +686,14 @@ class Engine {
         const q = QuestionGenerator.generate(category, tier, variants);
         if (!q) return null;
 
-        // Calculate metadata
+        // Calculate complexity
         const complexity = ComplexityCalculator.calculate(q);
-        const par = this.parCalculator.calculate(q, complexity);
-
         q.complexity = complexity;
-        q.targetTime = par;
+
+        // Hybrid target time: tier baseTime + complexity modifier
+        const tierData = OPERATIONS[category]?.tiers.find(t => t.id === tier);
+        const baseTime = tierData?.baseTime || 3.0;
+        q.targetTime = Math.max(1.0, baseTime + (complexity * 0.3));
 
         return q;
     }
@@ -805,20 +706,12 @@ class Engine {
         if (isCorrect) {
             // Speed ratio: >1 means faster than par
             const speedRatio = question.targetTime / Math.max(0.1, timeTaken);
-
             result = this.arcade.onCorrect(basePoints, complexity, speedRatio, question.category);
-
-            // Update Speed Factor
-            this.speedUpdater.update(question, timeTaken, isCorrect, complexity);
-            this.saveStats();
         } else {
             result = this.arcade.onError();
         }
 
-        return {
-            ...result,
-            speedFactor: this.profile.speedFactor
-        };
+        return result;
     }
 
     resetSession() {

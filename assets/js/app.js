@@ -352,10 +352,9 @@ document.addEventListener('alpine:init', () => {
         },
 
         get srsDisplay() {
-            // Deprecated/Removed feature, currently just a placeholder driven by complexity if needed
             return [
                 { label: 'Complexity', value: this.currentQuestion?.complexity?.toFixed(1) || '-', colorClass: 'text-text-primary' },
-                { label: 'SpeedFactor', value: this.engine.profile.speedFactor.toFixed(2), colorClass: 'text-text-muted' }
+                { label: 'Target', value: this.currentQuestion?.targetTime?.toFixed(1) + 's' || '-', colorClass: 'text-text-muted' }
             ];
         },
 
@@ -602,7 +601,6 @@ document.addEventListener('alpine:init', () => {
             if (this.nextQuestionTimeout) clearTimeout(this.nextQuestionTimeout);
             this.session.isActive = false;
             this.session.isPaused = false;
-            this.streak = 0;
             this.consecutiveErrors = 0;
             this.errorQueue = [];
             this.downgraded = false;
@@ -628,10 +626,7 @@ document.addEventListener('alpine:init', () => {
         generateQuestion() {
             if (this.errorQueue.length > 0) {
                 this.currentQuestion = this.errorQueue.pop();
-                // Re-calculate target time for current state
-                const par = this.engine.parCalculator.calculate(this.currentQuestion, this.currentQuestion.complexity);
-                this.currentQuestion.targetTime = par;
-
+                // Target time stays the same from original question
                 this.log(`[QUEUE] Retrying: ${this.currentQuestion.display}`);
             } else {
                 this.currentQuestion = this.engine.generateQuestion(
@@ -751,9 +746,8 @@ document.addEventListener('alpine:init', () => {
                 this.totalCorrect++;
                 catStats.totalCorrect++;
 
-                this.streak++;
                 catStats.streak++;
-                if (this.streak > this.bestStreak) this.bestStreak = this.streak;
+                if (this.engine.arcade.streak > this.bestStreak) this.bestStreak = this.engine.arcade.streak;
                 if (catStats.streak > catStats.bestStreak) catStats.bestStreak = catStats.streak;
 
                 this.consecutiveErrors = 0;
@@ -789,7 +783,6 @@ document.addEventListener('alpine:init', () => {
             } else {
                 this.errorCount++;
                 catStats.errorCount++;
-                this.streak = 0;
                 catStats.streak = 0;
                 this.consecutiveErrors++;
 
