@@ -916,9 +916,6 @@ document.addEventListener('alpine:init', () => {
 
             // Submit to Engine
             const engineResult = this.engine.submitAnswer(this.currentQuestion, responseTime, isCorrect);
-
-            // Logging - Score log removed, sticking to [OK]/[SLOW] logs below
-
             this.recordResponse(isCorrect, isFast, responseTime * 1000);
 
             const delay = isCorrect ? 300 : 1200;
@@ -967,16 +964,21 @@ document.addEventListener('alpine:init', () => {
                     this.showFeedback('success', '✓', 'FAST', this.formatTime(responseTimeMs));
                     this.flash('success');
                     if (Alpine.store('settings').display.enableSound) SoundManager.playPreset('fast');
-                    this.log(`[OK] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)} | FAST`);
+
+                    const timeDiff = (responseTimeMs / 1000 - q.targetTime).toFixed(1);
+                    const diffStr = timeDiff > 0 ? `+${timeDiff}s` : `${timeDiff}s`;
+                    this.log(`[OK] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)} / ${q.targetTime.toFixed(1)}s (${diffStr}) | FAST`);
 
                     if (catStats.streak > 0 && catStats.streak % 10 === 0) ParticleSystem.trigger();
                 } else {
                     this.slowCount++;
                     catStats.slowCount++;
+                    const timeDiff = (responseTimeMs / 1000 - q.targetTime).toFixed(1);
+                    const diffStr = `+${timeDiff}s`;
                     this.showFeedback('warning', '⚡', 'TOO SLOW', `${this.formatTime(responseTimeMs)} (Par: ${q.targetTime.toFixed(1)}s)`);
                     this.flash('warning');
                     if (Alpine.store('settings').display.enableSound) SoundManager.playPreset('correct');
-                    this.log(`[SLOW] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)}`);
+                    this.log(`[SLOW] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)} / ${q.targetTime.toFixed(1)}s (${diffStr})`);
                 }
 
                 if (this.downgraded) {
@@ -998,7 +1000,7 @@ document.addEventListener('alpine:init', () => {
                 this.showFeedback('error', '✗', 'INCORRECT', `Correct: ${q.answer}`);
                 this.flash('error');
                 if (Alpine.store('settings').display.enableSound) SoundManager.playPreset('error');
-                this.log(`[FAIL] ${q.display} | Expected: ${q.answer} | Got: ${this.userAnswer}`);
+                this.log(`[FAIL] ${q.display} | Expected: ${q.answer} | Got: ${this.userAnswer} | ${this.formatTime(responseTimeMs)} (Target: ${q.targetTime.toFixed(1)}s)`);
 
                 if (this.consecutiveErrors >= 3 && !this.downgraded) {
                     const tiers = this.currentOperation.tiers;
