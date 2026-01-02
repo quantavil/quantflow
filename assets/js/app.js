@@ -150,6 +150,21 @@ document.addEventListener('alpine:init', () => {
             variants: ['positive']
         },
 
+        // Round state (finite game mode)
+        round: {
+            targetCount: 20,
+            currentCount: 0,
+            isComplete: false,
+            stats: {
+                correct: 0,
+                fast: 0,
+                slow: 0,
+                errors: 0,
+                totalTime: 0,
+                latencies: []
+            }
+        },
+
         // Current question
         currentQuestion: null,
         questionStartTime: null,
@@ -383,6 +398,22 @@ document.addEventListener('alpine:init', () => {
             return this.heatmapCells.reduce((sum, c) => sum + c.count, 0);
         },
 
+        get roundAccuracy() {
+            const total = this.round.stats.correct + this.round.stats.errors;
+            return total > 0 ? Math.round((this.round.stats.correct / total) * 100) : 0;
+        },
+
+        get roundAvgTime() {
+            const lats = this.round.stats.latencies;
+            if (lats.length === 0) return '--';
+            const avg = lats.reduce((a, b) => a + b, 0) / lats.length;
+            return this.formatTime(avg);
+        },
+
+        get roundProgress() {
+            return `${this.round.currentCount}/${this.round.targetCount}`;
+        },
+
         // ═══════════════════════════════════════════════════════════════════════
         // INITIALIZATION
         // ═══════════════════════════════════════════════════════════════════════
@@ -421,8 +452,8 @@ document.addEventListener('alpine:init', () => {
             }, 1000);
 
 
-            // Initialize default variants
-            this.updateVariantsFromDefaults();
+            // Load saved practice state, then set defaults for missing variants
+            this.loadPracticeState();
         },
 
         safeGetStorage(key, defaultValue) {
@@ -542,6 +573,9 @@ document.addEventListener('alpine:init', () => {
             }
 
             if (this.session.isActive) this.generateQuestion();
+
+            // Persist practice state
+            this.savePracticeState();
         },
 
         selectCategory(category) {
@@ -566,6 +600,51 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        savePracticeState() {
+            this.safeSetStorage('quantflow_practice', {
+                category: this.practice.category,
+                tier: this.practice.tier,
+                variants: this.practice.variants,
+                roundSize: this.round.targetCount
+            });
+        },
+
+        loadPracticeState() {
+            const saved = this.safeGetStorage('quantflow_practice', null);
+            if (saved) {
+                // Restore category if valid
+                if (saved.category && this.operations[saved.category]) {
+                    this.practice.category = saved.category;
+
+                    // Restore tier if valid for this category
+                    const validTier = this.currentOperation.tiers.find(t => t.id === saved.tier);
+                    if (validTier) {
+                        this.practice.tier = saved.tier;
+                    } else {
+                        this.practice.tier = this.currentOperation.tiers[0].id;
+                    }
+
+                    // Restore variants if valid
+                    if (saved.variants && saved.variants.length > 0) {
+                        const validVariants = saved.variants.filter(v =>
+                            this.currentOperation.variants.some(ov => ov.id === v)
+                        );
+                        this.practice.variants = validVariants.length > 0 ? validVariants : [];
+                    }
+                }
+
+                // Restore round size
+                if (saved.roundSize && [10, 20, 30, 50, 100].includes(saved.roundSize)) {
+                    this.round.targetCount = saved.roundSize;
+                }
+            }
+
+            // Ensure we have at least one variant
+            if (this.practice.variants.length === 0) {
+                this.updateVariantsFromDefaults();
+            }
+        },
+
         // ═══════════════════════════════════════════════════════════════════════
         // SESSION CONTROL
         // ═══════════════════════════════════════════════════════════════════════
@@ -576,7 +655,10 @@ document.addEventListener('alpine:init', () => {
             this.session.startTime = Date.now();
             this.session.seconds = 0;
 
-            this.log(`[SYS] Session started. Category: ${this.practice.category.toUpperCase()}`);
+            // Reset round state
+            this.resetRoundStats();
+
+            this.log(`[SYS] Round started: ${this.round.targetCount} questions | ${this.practice.category.toUpperCase()}`);
             this.generateQuestion();
             this.$nextTick(() => this.$refs.answerInput?.focus());
         },
@@ -610,6 +692,9 @@ document.addEventListener('alpine:init', () => {
             this.currentQuestion = null;
             this.userAnswer = '';
 
+            // Reset round state
+            this.resetRoundStats();
+
             // Reset arcade state (session score, streak, difficulty)
             this.engine.resetSession();
 
@@ -618,6 +703,49 @@ document.addEventListener('alpine:init', () => {
 
             this.log('[SYS] Session reset.');
         },
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ROUND CONTROL
+        // ═══════════════════════════════════════════════════════════════════════
+
+        selectRoundSize(count) {
+            this.round.targetCount = count;
+            this.savePracticeState();
+            this.log(`[SYS] Round size set to ${count} questions.`);
+        },
+
+        resetRoundStats() {
+            this.round.currentCount = 0;
+            this.round.isComplete = false;
+            this.round.stats = {
+                correct: 0,
+                fast: 0,
+                slow: 0,
+                errors: 0,
+                totalTime: 0,
+                latencies: []
+            };
+        },
+
+        completeRound() {
+            this.round.isComplete = true;
+            this.session.isActive = false;
+            this.stopTimer();
+
+            const acc = this.roundAccuracy;
+            const avg = this.roundAvgTime;
+            this.log(`[SYS] Round complete! Accuracy: ${acc}% | Avg: ${avg}`);
+        },
+
+        startNewRound() {
+            this.round.isComplete = false;
+            this.startSession();
+        },
+
+        closeRoundSummary() {
+            this.round.isComplete = false;
+        },
+
 
         // ═══════════════════════════════════════════════════════════════════════
         // QUESTION GENERATION & DISPLAY
@@ -807,6 +935,31 @@ document.addEventListener('alpine:init', () => {
                     this.errorQueue.unshift(JSON.parse(JSON.stringify(q)));
                     if (this.errorQueue.length > 10) this.errorQueue.pop();
                 }
+            }
+
+            // Update round stats
+            this.round.currentCount++;
+            this.round.stats.latencies.push(responseTimeMs);
+            this.round.stats.totalTime += responseTimeMs;
+
+            if (isCorrect) {
+                this.round.stats.correct++;
+                if (isFast) {
+                    this.round.stats.fast++;
+                } else {
+                    this.round.stats.slow++;
+                }
+            } else {
+                this.round.stats.errors++;
+            }
+
+            // Check for round completion
+            if (this.round.currentCount >= this.round.targetCount) {
+                if (this.nextQuestionTimeout) clearTimeout(this.nextQuestionTimeout);
+                setTimeout(() => {
+                    this.feedback.visible = false;
+                    this.completeRound();
+                }, isCorrect ? 400 : 1400);
             }
 
             this.saveStats();

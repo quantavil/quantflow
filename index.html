@@ -247,6 +247,21 @@
                     </div>
                 </div>
 
+                <!-- Round Size Selection -->
+                <div class="panel-section">
+                    <div class="panel-section-title">
+                        <span>QUESTIONS</span>
+                        <span class="text-terminal-green" x-text="round.targetCount"></span>
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                        <template x-for="count in [10, 20, 30, 50, 100]" :key="count">
+                            <button class="btn-ghost tier-btn" :class="{ 'active': round.targetCount === count }"
+                                @click="selectRoundSize(count)" x-text="count">
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
                 <!-- Variants -->
                 <div class="panel-section flex-1">
                     <div class="panel-section-title">
@@ -280,6 +295,10 @@
                         x-text="practice.category.toUpperCase()"></span>
                 </div>
                 <div class="flex items-center gap-4 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="text-text-muted">ROUND</span>
+                        <span class="text-terminal-green font-medium" x-text="roundProgress"></span>
+                    </div>
                     <div class="flex items-center gap-2">
                         <span class="text-text-muted">PAR</span>
                         <span class="text-signal-orange font-medium" x-text="parTimeDisplay"></span>
@@ -611,6 +630,62 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════════
+         ROUND SUMMARY MODAL
+         ═══════════════════════════════════════════════════════════════════════════════ -->
+    <div x-show="round.isComplete" x-cloak x-transition.opacity @keydown.escape.window="closeRoundSummary()"
+        class="modal-backdrop">
+        <div class="bg-charcoal border-2 border-terminal-green w-full max-w-md mx-4 shadow-[0_0_40px_rgba(0,210,106,0.2)]"
+            @click.outside="closeRoundSummary()">
+            <!-- Header -->
+            <div class="p-6 text-center border-b border-charcoal-border">
+                <div class="text-terminal-green text-3xl font-bold tracking-wide mb-1">ROUND COMPLETE</div>
+                <div class="text-text-muted text-sm"
+                    x-text="round.targetCount + ' QUESTIONS · ' + practice.category.toUpperCase()"></div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="p-4">
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="stat-box">
+                        <div class="text-xs text-text-muted mb-1">ACCURACY</div>
+                        <div class="text-2xl font-bold text-terminal-green" x-text="roundAccuracy + '%'"></div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="text-xs text-text-muted mb-1">AVG TIME</div>
+                        <div class="text-2xl font-bold text-text-primary" x-text="roundAvgTime"></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="stat-box">
+                        <div class="text-xs text-text-muted">FAST</div>
+                        <div class="text-xl font-bold text-terminal-green" x-text="round.stats.fast"></div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="text-xs text-text-muted">SLOW</div>
+                        <div class="text-xl font-bold text-signal-orange" x-text="round.stats.slow"></div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="text-xs text-text-muted">ERRORS</div>
+                        <div class="text-xl font-bold text-signal-red" x-text="round.stats.errors"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="p-4 pt-0 flex gap-3">
+                <button @click="startNewRound()"
+                    class="flex-1 py-3 bg-terminal-green text-charcoal font-bold hover:bg-terminal-green-dim transition-colors">
+                    NEW ROUND
+                </button>
+                <button @click="closeRoundSummary()"
+                    class="flex-1 py-3 border border-charcoal-border text-text-muted hover:text-text-primary hover:border-text-muted transition-colors">
+                    CLOSE
+                </button>
             </div>
         </div>
     </div>
