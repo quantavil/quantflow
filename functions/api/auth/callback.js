@@ -48,7 +48,7 @@ export async function onRequest(context) {
         // Redirect back to frontend
         // For Pages, we redirect to the root explicitly
         const frontendUrl = url.origin;
-        return Response.redirect(`${frontendUrl}#token=${sessionToken}`);
+        return Response.redirect(`${frontendUrl}?token=${sessionToken}`);
 
     } catch (err) {
         return new Response(err.message, { status: 500 });

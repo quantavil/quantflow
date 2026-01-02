@@ -214,6 +214,20 @@ document.addEventListener('alpine:init', () => {
     });
 
     Alpine.data('quantflow', () => ({
+        // Core dependencies
+        engine: new window.Engine(),
+        operations: window.OPERATIONS,
+
+        // Auth Store Helper
+        get auth() {
+            return Alpine.store('auth');
+        },
+        loginWithGitHub() {
+            Alpine.store('auth').loginWithGitHub();
+        },
+        logout() {
+            Alpine.store('auth').logout();
+        },
         // Session state
         session: {
             isActive: false,
@@ -252,7 +266,7 @@ document.addEventListener('alpine:init', () => {
         timerFrame: null,
 
         // Stats
-        streak: 0,
+        get streak() { return this.engine?.arcade?.streak || 0; },
         bestStreak: 0,
         todayCount: 0,
         totalCorrect: 0,
@@ -319,7 +333,7 @@ document.addEventListener('alpine:init', () => {
             return this.operations[this.practice.category] || this.operations.addition;
         },
 
-        isSessionRunning() {
+        get isSessionRunning() {
             return this.session.isActive && !this.session.isPaused;
         },
 
@@ -501,13 +515,15 @@ document.addEventListener('alpine:init', () => {
         // ═══════════════════════════════════════════════════════════════════════
 
         init() {
+            this.loadSettings();
             this.loadStats();
+            Alpine.store('auth').init(); // Ensure auth is initialized explicitly
             this.updateClock();
 
             this.log('[SYS] QuantFlow initialized. Engine: Arcade Mode');
 
             // Clock interval
-            setInterval(() => this.updateClock(), 1000);
+            this.clockInterval = setInterval(() => this.updateClock(), 1000);
 
             // Session timer
             if (this.sessionInterval) clearInterval(this.sessionInterval);
@@ -888,7 +904,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         submitAnswer() {
-            if (!this.isSessionRunning() || !this.currentQuestion) return;
+            if (!this.isSessionRunning || !this.currentQuestion) return;
             if (this.processingSubmission) return;
 
             this.processingSubmission = true;
@@ -997,7 +1013,7 @@ document.addEventListener('alpine:init', () => {
                 }
 
                 if (!this.errorQueue.some(eq => eq.display === q.display)) {
-                    this.errorQueue.unshift(JSON.parse(JSON.stringify(q)));
+                    this.errorQueue.unshift({ ...q });
                     if (this.errorQueue.length > 10) this.errorQueue.pop();
                 }
             }
@@ -1219,6 +1235,15 @@ document.addEventListener('alpine:init', () => {
             this.recentResponses = [];
             Alpine.store('settings').display = { showTimer: true, enableSound: false, brutalFeedback: true };
             this.log('[SYS] All data cleared.');
+        },
+
+        loadSettings() {
+            Alpine.store('settings').init();
+        },
+
+        destroy() {
+            if (this.clockInterval) clearInterval(this.clockInterval);
+            if (this.sessionInterval) clearInterval(this.sessionInterval);
         }
 
     }));

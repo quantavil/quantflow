@@ -546,6 +546,8 @@ const QuestionGenerator = {
         if (!tierData) return null;
 
         let divisor = Utils.generateNumberWithDigits(tierData.digits[1]);
+        // Universal check: Avoid division by 0 or 1 for non-triviality
+        if (divisor <= 1) divisor = Utils.randomInt(2, 9);
         const maxDiv = Math.pow(10, tierData.digits[0]) - 1;
         const minDiv = Math.pow(10, tierData.digits[0] - 1);
 
@@ -561,7 +563,6 @@ const QuestionGenerator = {
             dividend = divisor * quotient;
             answer = quotient;
         } else if (mode === 'remainder') {
-            if (divisor <= 1) divisor = Utils.randomInt(2, 9);
             const quotient = Utils.randomInt(2, 20);
             const maxRem = divisor - 1;
             remainder = maxRem > 0 ? Utils.randomInt(1, maxRem) : 0;
@@ -746,7 +747,19 @@ class Engine {
         // Hybrid target time: tier baseTime + complexity modifier
         const tierData = OPERATIONS[category]?.tiers.find(t => t.id === tier);
         const baseTime = tierData?.baseTime || 3.0;
-        q.targetTime = Math.max(1.0, baseTime + (complexity * 0.6));
+
+        // Apply settings multipliers if available
+        let baseMult = 1.0;
+        let compMult = 0.6;
+        if (window.Alpine && window.Alpine.store('settings')) {
+            const timing = window.Alpine.store('settings').timing;
+            if (timing) {
+                baseMult = timing.baseTimeMultiplier || 1.0;
+                compMult = timing.complexityMultiplier || 0.6;
+            }
+        }
+
+        q.targetTime = Math.max(1.0, (baseTime * baseMult) + (complexity * compMult));
 
         return q;
     }

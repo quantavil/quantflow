@@ -29,7 +29,7 @@ export async function onRequest(context) {
     if (request.method === 'GET') {
         const data = await context.env.QUANTFLOW_DATA.get(`user_data:${userId}`);
         return new Response(data || '{}', {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
     }
 
