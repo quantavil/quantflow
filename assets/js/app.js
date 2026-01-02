@@ -629,7 +629,7 @@ document.addEventListener('alpine:init', () => {
             const timestamp = new Date().toLocaleTimeString('en-GB');
             let colorClass = 'text-text-dim';
 
-            if (message.includes('[OK]') || message.includes('FAST')) colorClass = 'text-terminal-green';
+            if (message.includes('[FAST]')) colorClass = 'text-terminal-green';
             else if (message.includes('[SLOW]') || message.includes('[QUEUE]')) colorClass = 'text-signal-orange';
             else if (message.includes('[FAIL]') || message.includes('[ERR]')) colorClass = 'text-signal-red';
             else if (message.includes('[SYS]')) colorClass = 'text-text-secondary';
@@ -774,6 +774,9 @@ document.addEventListener('alpine:init', () => {
             this.session.seconds = 0;
 
             // Reset round state
+            this.latencies = [];
+            this.recentResponses = [];
+            this.consecutiveErrors = 0;
             this.resetRoundStats();
 
             this.log(`[SYS] Round started: ${this.round.targetCount} questions | ${this.practice.category.toUpperCase()}`);
@@ -858,6 +861,7 @@ document.addEventListener('alpine:init', () => {
             const acc = this.roundAccuracy;
             const avg = this.roundAvgTime;
             this.log(`[SYS] Round complete! Accuracy: ${acc}% | Avg: ${avg}`);
+            this.log('[SYS] ----------------------------------------');
         },
 
         startNewRound() {
@@ -1007,7 +1011,7 @@ document.addEventListener('alpine:init', () => {
 
                     const timeDiff = (responseTimeMs / 1000 - q.targetTime).toFixed(1);
                     const diffStr = timeDiff > 0 ? `+${timeDiff}s` : `${timeDiff}s`;
-                    this.log(`[OK] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)} / ${q.targetTime.toFixed(1)}s (${diffStr}) | FAST`);
+                    this.log(`[FAST] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)} / ${q.targetTime.toFixed(2)}s (${diffStr})`);
 
                     if (catStats.streak > 0 && catStats.streak % 10 === 0) ParticleSystem.trigger();
                 } else {
@@ -1018,7 +1022,7 @@ document.addEventListener('alpine:init', () => {
                     this.showFeedback('warning', '⚡', 'TOO SLOW', `${this.formatTime(responseTimeMs)} (Par: ${q.targetTime.toFixed(1)}s)`);
                     this.flash('warning');
                     if (Alpine.store('settings').display.enableSound) SoundManager.playPreset('correct');
-                    this.log(`[SLOW] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)} / ${q.targetTime.toFixed(1)}s (${diffStr})`);
+                    this.log(`[SLOW] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)} / ${q.targetTime.toFixed(2)}s (${diffStr})`);
                 }
 
                 if (this.downgraded) {
@@ -1040,7 +1044,7 @@ document.addEventListener('alpine:init', () => {
                 this.showFeedback('error', '✗', 'INCORRECT', `Correct: ${q.answer}`);
                 this.flash('error');
                 if (Alpine.store('settings').display.enableSound) SoundManager.playPreset('error');
-                this.log(`[FAIL] ${q.display} | Expected: ${q.answer} | Got: ${this.userAnswer} | ${this.formatTime(responseTimeMs)} (Target: ${q.targetTime.toFixed(1)}s)`);
+                this.log(`[FAIL] ${q.display} = ${q.answer} | Got: ${this.userAnswer} | ${this.formatTime(responseTimeMs)}`);
 
                 if (this.consecutiveErrors >= 3 && !this.downgraded) {
                     const tiers = this.currentOperation.tiers;
@@ -1088,6 +1092,12 @@ document.addEventListener('alpine:init', () => {
                 setTimeout(() => {
                     this.feedback.visible = false;
                     this.completeRound();
+                }, isCorrect ? 400 : 1400);
+            } else {
+                // Round continues - generate next question after delay
+                this.nextQuestionTimeout = setTimeout(() => {
+                    this.feedback.visible = false;
+                    this.generateQuestion();
                 }, isCorrect ? 400 : 1400);
             }
 
