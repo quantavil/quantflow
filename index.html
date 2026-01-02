@@ -18,6 +18,19 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"
         onerror="alert('Error: Tailwind CSS failed to load. Please check your connection.')"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1A1A1A">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registered:', reg))
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
     <script>
         tailwind.config = {
             theme: {
