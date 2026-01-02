@@ -65,12 +65,12 @@
     </script>
 
     <!-- Fraction.js -->
-    <script src="https://cdn.jsdelivr.net/npm/fraction.js@5.2.1/dist/fraction.min.js"
-        onerror="this.onerror=null;this.src='https://unpkg.com/fraction.js@5.2.1/dist/fraction.min.js'"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fraction.js@5.3.4/dist/fraction.min.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/fraction.js@5.3.4/dist/fraction.min.js'"></script>
 
     <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"
-        onerror="this.onerror=null;this.src='https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js'"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.3/dist/cdn.min.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/alpinejs@3.15.3/dist/cdn.min.js'"></script>
     <script src="assets/js/engine.js"></script>
     <script src="assets/js/app.js"></script>
 </head>
@@ -586,9 +586,9 @@
                             <label
                                 class="flex items-center justify-between bg-charcoal-light p-2 border border-charcoal-border">
                                 <span class="text-xs" x-text="setting.label"></span>
-                                <input type="number" x-model.number="config.timing[setting.key]" @change="saveSettings"
-                                    :step="setting.step" :min="setting.min" :max="setting.max"
-                                    class="w-16 input-field text-right">
+                                <input type="number" x-model.number="$store.settings.timing[setting.key]"
+                                    @change="$store.settings.save()" :step="setting.step" :min="setting.min"
+                                    :max="setting.max" class="w-16 input-field text-right">
                             </label>
                         </template>
                     </div>
@@ -602,8 +602,8 @@
                             <label
                                 class="flex items-center justify-between bg-charcoal-light p-2 border border-charcoal-border">
                                 <span class="text-xs" x-text="setting.label"></span>
-                                <input type="checkbox" x-model="config.display[setting.key]" @change="saveSettings"
-                                    class="w-4 h-4 accent-terminal-green">
+                                <input type="checkbox" x-model="$store.settings.display[setting.key]"
+                                    @change="$store.settings.save()" class="w-4 h-4 accent-terminal-green">
                             </label>
                         </template>
                     </div>

@@ -288,58 +288,7 @@ class ComplexityCalculator {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// FRACTION HELPER
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class Fraction {
-    constructor(n, d = 1) {
-        if (d === 0) throw new Error("Denominator cannot be zero");
-        this.n = n;
-        this.d = d;
-        this.simplify();
-    }
-
-    simplify() {
-        const common = this.gcd(Math.abs(this.n), Math.abs(this.d));
-        this.n /= common;
-        this.d /= common;
-        if (this.d < 0) {
-            this.n = -this.n;
-            this.d = -this.d;
-        }
-        return this;
-    }
-
-    gcd(a, b) {
-        return b === 0 ? a : this.gcd(b, a % b);
-    }
-
-    add(other) {
-        return new Fraction(this.n * other.d + other.n * this.d, this.d * other.d);
-    }
-
-    sub(other) {
-        return new Fraction(this.n * other.d - other.n * this.d, this.d * other.d);
-    }
-
-    mul(other) {
-        return new Fraction(this.n * other.n, this.d * other.d);
-    }
-
-    div(other) {
-        return new Fraction(this.n * other.d, this.d * other.n);
-    }
-
-    compare(other) {
-        return (this.n * other.d) - (other.n * this.d);
-    }
-
-    toFraction() {
-        if (this.d === 1) return this.n.toString();
-        return `${this.n}/${this.d}`;
-    }
-}
+// Custom Fraction class replaced by fraction.js library
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ARCADE SYSTEM
@@ -731,24 +680,26 @@ const QuestionGenerator = {
         const maxDenom = tierData.maxDenom;
         const genFrac = () => {
             const den = Utils.randomInt(2, maxDenom);
-            return new Fraction(Utils.randomInt(1, den - 1), den);
+            return new window.Fraction(Utils.randomInt(1, den - 1), den);
         };
 
-        let display, answer, fResult;
+        let display, fResult;
         const f1 = genFrac(), f2 = genFrac();
 
         const operations = {
             add: (a, b) => { fResult = a.add(b); return `${a.toFraction()} + ${b.toFraction()}`; },
-            subtract: (a, b) => { const [x, y] = a.compare(b) < 0 ? [b, a] : [a, b]; fResult = x.sub(y); return `${x.toFraction()} − ${y.toFraction()}`; },
+            subtract: (a, b) => {
+                const [x, y] = a.compare(b) < 0 ? [b, a] : [a, b];
+                fResult = x.sub(y);
+                return `${x.toFraction()} − ${y.toFraction()}`;
+            },
             multiply: (a, b) => { fResult = a.mul(b); return `${a.toFraction()} × ${b.toFraction()}`; },
             divide: (a, b) => { fResult = a.div(b); return `${a.toFraction()} ÷ ${b.toFraction()}`; },
-            simplify: () => {
-                const f = Utils.randomInt(2, 5), d = Utils.randomInt(2, Math.floor(maxDenom / f)), n = Utils.randomInt(1, d - 1);
-                fResult = new Fraction(n, d); return `Simplify: ${n * f}/${d * f}`;
-            },
             mixed: (a, b) => {
                 const w1 = Utils.randomInt(1, 5), w2 = Utils.randomInt(1, 3);
-                fResult = (new Fraction(w1).add(a)).add(new Fraction(w2).add(b));
+                const mf1 = new window.Fraction(w1).add(a);
+                const mf2 = new window.Fraction(w2).add(b);
+                fResult = mf1.add(mf2);
                 return `${w1} ${a.toFraction()} + ${w2} ${b.toFraction()}`;
             }
         };
@@ -758,9 +709,16 @@ const QuestionGenerator = {
         display = operations[op](f1, f2);
 
         return {
-            display, operator: '/', answer: fResult.toFraction(), answerNum: fResult.n, answerDen: fResult.d,
-            category: 'fractions', tier, variants,
-            operand1: f1.toFraction(), operand2: f2.toFraction()
+            display,
+            operator: '/',
+            answer: fResult.toFraction(),
+            answerNum: fResult.n,
+            answerDen: fResult.d,
+            category: 'fractions',
+            tier,
+            variants,
+            operand1: f1.toFraction(),
+            operand2: f2.toFraction()
         };
     }
 };

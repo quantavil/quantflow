@@ -109,32 +109,111 @@ const ParticleSystem = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 document.addEventListener('alpine:init', () => {
-    Alpine.data('quantflow', () => ({
-        // API Configuration
-        API_BASE: '',
+    // Shared Stores for DRY state management
+    Alpine.store('auth', {
+        API_BASE: '', // Set your API base here if needed
+        isLoggedIn: false,
+        token: localStorage.getItem('quantflow_token') || null,
+        user: null,
+        isSyncing: false,
+        pendingSync: false,
 
-        // Auth state
-        auth: {
-            isLoggedIn: false,
-            token: null,
-            user: null,
-            isSyncing: false,
-            pendingSync: false
+        init() {
+            if (this.token) {
+                this.isLoggedIn = true;
+                this.fetchUserInfo();
+            }
+            this.handleAuthCallback();
         },
 
-        // Core state
-        engine: new Engine(),
-        operations: OPERATIONS,
+        loginWithGitHub() {
+            window.location.href = `${this.API_BASE}/api/auth/login`;
+        },
 
-        // Configuration
-        config: {
-            display: {
-                showTimer: true,
-                enableSound: false,
-                brutalFeedback: true
+        handleAuthCallback() {
+            const url = new URL(window.location.href);
+            let token = url.searchParams.get('token');
+            if (!token && window.location.hash.includes('token=')) {
+                try {
+                    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+                    token = hashParams.get('token');
+                } catch (e) { }
+            }
+            if (token) {
+                this.token = token;
+                localStorage.setItem('quantflow_token', token);
+                window.history.replaceState({}, document.title, window.location.pathname);
+                this.isLoggedIn = true;
+                this.fetchUserInfo();
             }
         },
 
+        async fetchUserInfo() {
+            try {
+                const res = await fetch(`${this.API_BASE}/api/user`, {
+                    headers: { 'Authorization': `Bearer ${this.token}` }
+                });
+                if (res.ok) {
+                    this.user = await res.json();
+                } else {
+                    this.logout();
+                }
+            } catch (e) { console.error('[AUTH] Verification failed'); }
+        },
+
+        logout() {
+            this.isLoggedIn = false;
+            this.token = null;
+            this.user = null;
+            localStorage.removeItem('quantflow_token');
+        },
+
+        async syncToCloud(payload) {
+            if (!this.isLoggedIn) return;
+            if (this.isSyncing) {
+                this.pendingSync = true;
+                return;
+            }
+            this.isSyncing = true;
+            this.pendingSync = false;
+
+            try {
+                const res = await fetch(`${this.API_BASE}/api/data`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) { console.error('[AUTH] Sync failed'); }
+            finally {
+                this.isSyncing = false;
+                if (this.pendingSync) this.syncToCloud(payload);
+            }
+        }
+    });
+
+    Alpine.store('settings', {
+        display: {
+            showTimer: true,
+            enableSound: false,
+            brutalFeedback: true
+        },
+        timing: {
+            baseTimeMultiplier: 1.0,
+            complexityMultiplier: 0.6
+        },
+        init() {
+            const saved = JSON.parse(localStorage.getItem('quantflow_settings') || '{}');
+            if (saved.display) Object.assign(this.display, saved.display);
+        },
+        save() {
+            localStorage.setItem('quantflow_settings', JSON.stringify({ display: this.display }));
+        }
+    });
+
+    Alpine.data('quantflow', () => ({
         // Session state
         session: {
             isActive: false,
@@ -225,6 +304,11 @@ document.addEventListener('alpine:init', () => {
             { key: 'showTimer', label: 'Show Live Timer' },
             { key: 'enableSound', label: 'Enable Sound Effects' },
             { key: 'brutalFeedback', label: 'Brutal Feedback Mode' }
+        ],
+
+        timingSettings: [
+            { key: 'baseTimeMultiplier', label: 'Base Time Multiplier', min: 0.5, max: 2.0, step: 0.1 },
+            { key: 'complexityMultiplier', label: 'Complexity Multiplier', min: 0.1, max: 1.0, step: 0.1 }
         ],
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -417,29 +501,13 @@ document.addEventListener('alpine:init', () => {
         // ═══════════════════════════════════════════════════════════════════════
 
         init() {
-            this.handleAuthCallback();
-            this.loadSettings();
             this.loadStats();
             this.updateClock();
 
-            if (this.auth.isLoggedIn) {
-                this.fetchFromCloud();
-            }
-
             this.log('[SYS] QuantFlow initialized. Engine: Arcade Mode');
-            if (this.auth.isLoggedIn && this.auth.user) {
-                this.log(`[AUTH] Logged in as ${this.auth.user.userId}`);
-            }
 
             // Clock interval
             setInterval(() => this.updateClock(), 1000);
-
-            // Sync on unload
-            window.addEventListener('beforeunload', () => {
-                if (this.auth.isLoggedIn) {
-                    this.syncToCloud(true);
-                }
-            });
 
             // Session timer
             if (this.sessionInterval) clearInterval(this.sessionInterval);
@@ -448,7 +516,6 @@ document.addEventListener('alpine:init', () => {
                     this.session.seconds++;
                 }
             }, 1000);
-
 
             // Load saved practice state, then set defaults for missing variants
             this.loadPracticeState();
@@ -883,7 +950,7 @@ document.addEventListener('alpine:init', () => {
                     catStats.fastCount++;
                     this.showFeedback('success', '✓', 'FAST', this.formatTime(responseTimeMs));
                     this.flash('success');
-                    if (this.config.display.enableSound) SoundManager.playPreset('fast');
+                    if (Alpine.store('settings').display.enableSound) SoundManager.playPreset('fast');
                     this.log(`[OK] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)} | FAST`);
 
                     if (catStats.streak > 0 && catStats.streak % 10 === 0) ParticleSystem.trigger();
@@ -892,7 +959,7 @@ document.addEventListener('alpine:init', () => {
                     catStats.slowCount++;
                     this.showFeedback('warning', '⚡', 'TOO SLOW', `${this.formatTime(responseTimeMs)} (Par: ${q.targetTime.toFixed(1)}s)`);
                     this.flash('warning');
-                    if (this.config.display.enableSound) SoundManager.playPreset('correct');
+                    if (Alpine.store('settings').display.enableSound) SoundManager.playPreset('correct');
                     this.log(`[SLOW] ${q.display} = ${q.answer} | ${this.formatTime(responseTimeMs)}`);
                 }
 
@@ -914,7 +981,7 @@ document.addEventListener('alpine:init', () => {
 
                 this.showFeedback('error', '✗', 'INCORRECT', `Correct: ${q.answer}`);
                 this.flash('error');
-                if (this.config.display.enableSound) SoundManager.playPreset('error');
+                if (Alpine.store('settings').display.enableSound) SoundManager.playPreset('error');
                 this.log(`[FAIL] ${q.display} | Expected: ${q.answer} | Got: ${this.userAnswer}`);
 
                 if (this.consecutiveErrors >= 3 && !this.downgraded) {
@@ -967,29 +1034,20 @@ document.addEventListener('alpine:init', () => {
             const user = userAnswer.toString().toLowerCase().replace(/\s+/g, '').replace(/,/g, '');
             const correct = correctAnswer.toString().toLowerCase().replace(/\s+/g, '').replace(/,/g, '');
 
-            // Exact match string check (fast path)
             if (user === correct) return true;
 
-            // Helper to parse "A/B" or decimals
-            const parseMathValue = (val) => {
-                if (!val) return NaN;
-                if (val.includes('/')) {
-                    const parts = val.split('/');
-                    if (parts.length === 2) {
-                        const n = parseFloat(parts[0]);
-                        const d = parseFloat(parts[1]);
-                        if (!isNaN(n) && !isNaN(d) && d !== 0) return n / d;
-                    }
+            try {
+                // Use fraction.js for robust comparison
+                const userFrac = new window.Fraction(user);
+                const correctFrac = new window.Fraction(correct);
+                return userFrac.equals(correctFrac);
+            } catch (e) {
+                // Fallback to basic numeric parsing if fraction.js fails (e.g. invalid chars)
+                const userNum = parseFloat(user);
+                const correctNum = parseFloat(correct);
+                if (!isNaN(userNum) && !isNaN(correctNum)) {
+                    return Math.abs(userNum - correctNum) < 0.001;
                 }
-                return parseFloat(val);
-            };
-
-            const userNum = parseMathValue(user);
-            const correctNum = parseMathValue(correct);
-
-            if (!isNaN(userNum) && !isNaN(correctNum)) {
-                // Tolerance comparison
-                return Math.abs(userNum - correctNum) < 0.01;
             }
 
             return false;
@@ -1053,16 +1111,8 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        loadSettings() {
-            const saved = this.safeGetStorage('quantflow_settings', null);
-            if (saved && saved.display) Object.assign(this.config.display, saved.display);
-            this.storageOk = true;
-        },
-
         saveSettings() {
-            this.safeSetStorage('quantflow_settings', {
-                display: this.config.display
-            });
+            Alpine.store('settings').save();
             this.log('[SYS] Settings saved.');
         },
 
@@ -1096,124 +1146,19 @@ document.addEventListener('alpine:init', () => {
                 daily[today] = this.todayCount;
                 localStorage.setItem('quantflow_daily', JSON.stringify(daily));
 
-                if (this.auth.isLoggedIn) this.debounceSync();
+                // Sync logic moved to Alpine.store('auth')
+                if (Alpine.store('auth').isLoggedIn) {
+                    const payload = {
+                        stats: {
+                            todayCount: this.todayCount,
+                            bestStreak: this.bestStreak,
+                            categoryStats: this.categoryStats
+                        },
+                        lastSync: new Date().toISOString()
+                    };
+                    Alpine.store('auth').syncToCloud(payload);
+                }
             } catch (e) { }
-        },
-
-        // Auth & Cloud Sync placeholders/implementations
-        loginWithGitHub() {
-            window.location.href = `${this.API_BASE}/api/auth/login`;
-        },
-
-        handleAuthCallback() {
-            const url = new URL(window.location.href);
-            let token = url.searchParams.get('token');
-            if (!token && window.location.hash.includes('token=')) {
-                try {
-                    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-                    token = hashParams.get('token');
-                } catch (e) { }
-            }
-            if (token) {
-                this.auth.token = token;
-                localStorage.setItem('quantflow_token', token);
-                window.history.replaceState({}, document.title, window.location.pathname);
-            } else {
-                this.auth.token = localStorage.getItem('quantflow_token');
-            }
-            if (this.auth.token) {
-                this.auth.isLoggedIn = true;
-                this.fetchUserInfo();
-            }
-        },
-
-        async fetchUserInfo() {
-            try {
-                const res = await fetch(`${this.API_BASE}/api/user`, {
-                    headers: { 'Authorization': `Bearer ${this.auth.token}` }
-                });
-                if (res.ok) {
-                    this.auth.user = await res.json();
-                } else {
-                    this.logout();
-                }
-            } catch (e) { this.log('[ERR] Auth verification failed.'); }
-        },
-
-        logout() {
-            this.auth.isLoggedIn = false;
-            this.auth.token = null;
-            this.auth.user = null;
-            localStorage.removeItem('quantflow_token');
-            this.log('[SYS] Logged out.');
-        },
-
-        async fetchFromCloud() {
-            this.auth.isSyncing = true;
-            try {
-                const res = await fetch(`${this.API_BASE}/api/data`, {
-                    headers: { 'Authorization': `Bearer ${this.auth.token}` }
-                });
-                if (res.ok) {
-                    const cloudData = await res.json();
-                    if (cloudData && Object.keys(cloudData).length > 0) {
-                        this.mergeCloudData(cloudData);
-                        this.log('[SYS] Data synced from cloud.');
-                    }
-                }
-            } catch (e) { this.log('[ERR] Cloud sync pull failed.'); }
-            finally { this.auth.isSyncing = false; }
-        },
-
-        mergeCloudData(cloudData) {
-            if (cloudData.stats) {
-                const stats = cloudData.stats;
-                this.todayCount = Math.max(this.todayCount, stats.todayCount || 0);
-                this.bestStreak = Math.max(this.bestStreak, stats.bestStreak || 0);
-            }
-        },
-
-        syncTimeout: null,
-        debounceSync() {
-            if (this.syncTimeout) clearTimeout(this.syncTimeout);
-            this.syncTimeout = setTimeout(() => this.syncToCloud(), 5000);
-        },
-
-        async syncToCloud(isBeacon = false) {
-            if (!this.auth.isLoggedIn) return;
-            if (this.auth.isSyncing) {
-                this.auth.pendingSync = true;
-                return;
-            }
-            this.auth.isSyncing = true;
-            this.auth.pendingSync = false;
-
-            const payload = {
-                stats: {
-                    todayCount: this.todayCount,
-                    bestStreak: this.bestStreak,
-                    categoryStats: this.categoryStats
-                },
-                lastSync: new Date().toISOString()
-            };
-
-            try {
-                const options = {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.auth.token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                };
-                if (isBeacon) options.keepalive = true;
-                const res = await fetch(`${this.API_BASE}/api/data`, options);
-                if (res.ok) this.log('[OK] Progress synced to cloud.');
-            } catch (e) { this.log('[ERR] Cloud sync push failed.'); }
-            finally {
-                this.auth.isSyncing = false;
-                if (this.auth.pendingSync) this.syncToCloud();
-            }
         },
 
         exportData() {
@@ -1272,7 +1217,7 @@ document.addEventListener('alpine:init', () => {
             this.errorCount = 0;
             this.latencies = [];
             this.recentResponses = [];
-            this.config.display = { showTimer: true, enableSound: false, brutalFeedback: true };
+            Alpine.store('settings').display = { showTimer: true, enableSound: false, brutalFeedback: true };
             this.log('[SYS] All data cleared.');
         }
 
