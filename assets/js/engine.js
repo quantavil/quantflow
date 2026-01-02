@@ -30,6 +30,7 @@ const OPERATIONS = {
         ],
         variants: [
             { id: 'standard', label: 'Standard', default: true },
+            { id: 'allow_negative', label: 'Allow Negative', default: false },
             { id: 'decimals', label: 'Decimals', default: false }
         ]
     },
@@ -280,6 +281,59 @@ class ComplexityCalculator {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// FRACTION HELPER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class Fraction {
+    constructor(n, d = 1) {
+        if (d === 0) throw new Error("Denominator cannot be zero");
+        this.n = n;
+        this.d = d;
+        this.simplify();
+    }
+
+    simplify() {
+        const common = this.gcd(Math.abs(this.n), Math.abs(this.d));
+        this.n /= common;
+        this.d /= common;
+        if (this.d < 0) {
+            this.n = -this.n;
+            this.d = -this.d;
+        }
+        return this;
+    }
+
+    gcd(a, b) {
+        return b === 0 ? a : this.gcd(b, a % b);
+    }
+
+    add(other) {
+        return new Fraction(this.n * other.d + other.n * this.d, this.d * other.d);
+    }
+
+    sub(other) {
+        return new Fraction(this.n * other.d - other.n * this.d, this.d * other.d);
+    }
+
+    mul(other) {
+        return new Fraction(this.n * other.n, this.d * other.d);
+    }
+
+    div(other) {
+        return new Fraction(this.n * other.d, this.d * other.n);
+    }
+
+    compare(other) {
+        return (this.n * other.d) - (other.n * this.d);
+    }
+
+    toFraction() {
+        if (this.d === 1) return this.n.toString();
+        return `${this.n}/${this.d}`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ARCADE SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -474,8 +528,11 @@ const QuestionGenerator = {
             b = Utils.randomFloat(b * 0.1, b * 1.1, 1);
         }
 
+        const baseQ = this._base('addition', tierData, a, b, (x, y) => x + y, '+');
+        if (!baseQ) return null;
+
         return {
-            ...this._base('addition', tierData, a, b, (x, y) => x + y, '+'),
+            ...baseQ,
             hasCarry: Utils.hasCarryAddition(Math.abs(a), Math.abs(b)), variants
         };
     },
@@ -494,8 +551,11 @@ const QuestionGenerator = {
             b = Utils.randomFloat(b * 0.1, b * 0.9, 1);
         }
 
+        const base = this._base('subtraction', tierData, a, b, (x, y) => x - y, '−');
+        if (!base) return null;
+
         return {
-            ...this._base('subtraction', tierData, a, b, (x, y) => x - y, '−'),
+            ...base,
             hasBorrow: Utils.hasBorrowSubtraction(a, b), variants
         };
     },
@@ -515,7 +575,10 @@ const QuestionGenerator = {
             b = Utils.generateNumberWithDigits(tierData.digits[1]);
         }
 
-        return { ...this._base('multiplication', tierData, a, b, (x, y) => x * y, '×'), variants };
+        const base = this._base('multiplication', tierData, a, b, (x, y) => x * y, '×');
+        if (!base) return null;
+
+        return { ...base, variants };
     },
 
     division(tier, variants) {
@@ -564,8 +627,9 @@ const QuestionGenerator = {
         const tierData = this._getTierData('powers', tier);
         if (!tierData) return null;
 
-        const base = Utils.randomInt(tierData.range[0], tierData.range[1]);
-        const power = variants.includes('custom') ? Utils.randomInt(2, 4) : tierData.power;
+        const power = variants.includes('custom') ? Utils.randomInt(2, 4) :
+            variants.includes('cubes') ? 3 :
+                variants.includes('squares') ? 2 : tierData.power;
         const superscript = power === 2 ? '²' : power === 3 ? '³' : `^${power}`;
 
         return {
@@ -584,16 +648,16 @@ const QuestionGenerator = {
 
         let radicand, answer;
         if (isCbrt) {
-            const minRoot = Math.ceil(Math.cbrt(tierData.range[0]));
+            const minRoot = Math.max(2, Math.ceil(Math.cbrt(tierData.range[0])));
             const maxRoot = Math.floor(Math.cbrt(tierData.range[1]));
             const root = Utils.randomInt(minRoot, maxRoot);
             radicand = root ** 3;
             answer = root;
         } else if (isEstimate) {
-            radicand = Utils.randomInt(tierData.range[0], tierData.range[1]);
+            radicand = Utils.randomInt(Math.max(2, tierData.range[0]), tierData.range[1]);
             answer = Math.round(Math.sqrt(radicand));
         } else {
-            const minRoot = Math.ceil(Math.sqrt(tierData.range[0]));
+            const minRoot = Math.max(2, Math.ceil(Math.sqrt(tierData.range[0])));
             const maxRoot = Math.floor(Math.sqrt(tierData.range[1]));
             const root = Utils.randomInt(minRoot, maxRoot);
             radicand = root ** 2;
@@ -602,7 +666,7 @@ const QuestionGenerator = {
 
         return {
             display: `${isCbrt ? '∛' : '√'}${radicand}`,
-            operand1: radicand, operator: isCbrt ? '∛' : '√',
+            operand1: radicand, operand2: isCbrt ? 3 : 2, operator: isCbrt ? '∛' : '√',
             answer, isEstimate, category: 'roots', tier, variants
         };
     },
@@ -634,7 +698,7 @@ const QuestionGenerator = {
             answer = parseFloat((isIncrease ? base + change : base - change).toFixed(2));
         } else if (variants.includes('reverse')) {
             const original = Utils.randomInt(50, 200);
-            display = `? + ${percent}% of ? = ${Math.round(original * (1 + percent / 100))}`;
+            display = `X + ${percent}% = ${Math.round(original * (1 + percent / 100))}`;
             answer = original;
         } else {
             display = `${percent}% of ${base}`;

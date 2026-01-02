@@ -2,7 +2,7 @@
 
 **Live Demo: [https://quantflow.pages.dev](https://quantflow.pages.dev)**
 
-QuantFlow is a high-performance, web application designed to help users master mental math through mental math principles. It features a "Bloomberg Terminal" aesthetic, rapid-fire question engine, and dynamic Elo-based difficulty adjustment.
+QuantFlow is a high-performance, web application designed to help users master mental math through mental math principles. It features a "Bloomberg Terminal" aesthetic, rapid-fire question engine.
 
 ## Features
 
@@ -14,7 +14,7 @@ QuantFlow is a high-performance, web application designed to help users master m
 
 ## Tech Stack
 
-*   **Frontend**: Vanilla HTML5, Tailwind CSS (CDN), Alpine.js, Fraction.js.
+*   **Frontend**: Vanilla HTML5, Tailwind CSS (CDN), Alpine.js.
 *   **Infrastructure**: Cloudflare Pages (Frontend Hosting + API Functions).
 *   **Persistence**: `localStorage` (default), Cloudflare KV (optional cloud sync).
 
@@ -32,6 +32,10 @@ No build tools are required.
 *   `engine.js`: Core math engine, Elo system, and complexity calculations.
 *   `styles.css`: Custom aesthetic overrides and animations.
 *   `functions/`: Cloudflare Pages Functions (API).
+*   **Advanced Math Concepts**:
+    *   Perfect squares/cubes for roots
+    *   Modular arithmetic for division
+    *   Fractional arithmetic and simplification via internal `Fraction` class.
 
 ## Deployment
 

@@ -41,6 +41,7 @@ Uses a **Point System** to evaluate a question's mental load:
 -   **Operation Weight**: Base weights (e.g., Addition = 0, Roots = 3.5).
 -   **Cognitive Load**: Penalties for "Carries" in addition or "Borrows" in subtraction.
 -   **Variant Modifiers**: Extra points for decimals, negative numbers, or complex fractions.
+-   **Fraction Class**: Internal helper class to handle precise fractional arithmetic and simplification without external dependencies.
 
 ### C. The Arcade System (`ArcadeSystem`)
 A session-based scoring system that replaces traditional rating systems:
@@ -119,7 +120,7 @@ The most unique part of QuantFlow's logic:
 A factory that produces questions. Handles complex logic like:
 - Perfect squares/cubes for roots
 - Modular arithmetic for division
-- LCD/Simplified fractions for the fractions module
+- Fractional arithmetic and simplification via internal `Fraction` class.
 
 ---
 
@@ -154,6 +155,6 @@ This gives users full control over their training focus while the arcade mechani
 
 -   **Frontend**: Alpine.js (Reactive UI), Tailwind CSS (Aesthetics).
 -   **Logic**: Vanilla JS (ES6+).
--   **Calculations**: `fraction.js` for precise fractional arithmetic.
+-   **Calculations**: Internal `Fraction` class for precise fractional arithmetic.
 -   **Performance**: `requestAnimationFrame` for the live timer to ensure zero UI lag.
 -   **Storage**: `localStorage` for session persistence, Cloudflare D1/KV for cloud sync.
