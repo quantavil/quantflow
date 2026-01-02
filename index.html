@@ -616,20 +616,77 @@
                 <div>
                     <div class="panel-section-title">DATA MANAGEMENT</div>
                     <div class="flex gap-2">
-                        <button @click="exportData"
+                        <button @click="openExportModal"
                             class="btn-ghost flex-1 hover:!border-terminal-green hover:!text-terminal-green">
                             EXPORT DATA
                         </button>
-                        <button @click="importData"
+                        <button @click="openImportModal"
                             class="btn-ghost flex-1 hover:!border-signal-orange hover:!text-signal-orange">
                             IMPORT DATA
                         </button>
-                        <button @click="clearData"
+                        <button @click="openConfirmClear"
                             class="btn-ghost flex-1 !border-signal-red !text-signal-red hover:!bg-signal-red hover:!text-charcoal">
                             CLEAR ALL
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div x-show="exportModalOpen" x-cloak x-transition.opacity class="modal-backdrop">
+        <div class="bg-charcoal border border-terminal-green w-full max-w-[400px] mx-4 flex flex-col"
+            @click.outside="exportModalOpen = false">
+            <div class="panel-header !h-10 text-terminal-green">
+                <span class="text-sm font-medium">EXPORT DATA</span>
+                <button @click="exportModalOpen = false" class="close-btn">&times;</button>
+            </div>
+            <div class="p-4">
+                <textarea readonly x-model="exportDataStr" @click="$el.select()"
+                    class="w-full h-32 bg-charcoal-light border border-charcoal-border text-xs font-mono p-2 focus:border-terminal-green outline-none resize-none"></textarea>
+                <div class="text-[10px] text-text-muted mt-2 text-center">CLICK TO SELECT ALL • CTRL+C TO COPY</div>
+                <button @click="exportModalOpen = false"
+                    class="w-full mt-3 py-2 bg-charcoal-light border border-charcoal-border hover:bg-charcoal-lighter transition-colors text-xs font-bold">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div x-show="importModalOpen" x-cloak x-transition.opacity class="modal-backdrop">
+        <div class="bg-charcoal border border-signal-orange w-full max-w-[400px] mx-4 flex flex-col"
+            @click.outside="importModalOpen = false">
+            <div class="panel-header !h-10 text-signal-orange">
+                <span class="text-sm font-medium">IMPORT DATA</span>
+                <button @click="importModalOpen = false" class="close-btn">&times;</button>
+            </div>
+            <div class="p-4">
+                <textarea x-model="importDataStr" placeholder="Paste JSON here..."
+                    class="w-full h-32 bg-charcoal-light border border-charcoal-border text-xs font-mono p-2 focus:border-signal-orange outline-none resize-none"></textarea>
+                <div class="flex gap-2 mt-3">
+                    <button @click="processImport"
+                        class="flex-1 py-2 bg-signal-orange text-charcoal font-bold hover:bg-signal-orange-dark transition-colors text-xs">IMPORT</button>
+                    <button @click="importModalOpen = false"
+                        class="flex-1 py-2 bg-charcoal-light border border-charcoal-border hover:bg-charcoal-lighter transition-colors text-xs font-bold">CANCEL</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Clear Modal -->
+    <div x-show="confirmModalOpen" x-cloak x-transition.opacity class="modal-backdrop">
+        <div
+            class="bg-charcoal border-2 border-signal-red w-full max-w-[350px] mx-4 flex flex-col items-center p-6 text-center animate-shake">
+            <div class="text-signal-red text-4xl mb-4 font-bold">⚠️</div>
+            <h3 class="text-lg font-bold text-signal-red mb-2">ERASE ALL DATA?</h3>
+            <p class="text-xs text-text-muted mb-6 px-4">This action cannot be undone. All stats and history will be
+                reset.</p>
+            <div class="flex gap-3 w-full">
+                <button @click="performClear"
+                    class="flex-1 py-3 bg-signal-red text-charcoal font-bold hover:bg-signal-red-dark transition-colors">YES,
+                    ERASE</button>
+                <button @click="confirmModalOpen = false"
+                    class="flex-1 py-3 border border-charcoal-border text-text-primary hover:bg-charcoal-light transition-colors">CANCEL</button>
             </div>
         </div>
     </div>

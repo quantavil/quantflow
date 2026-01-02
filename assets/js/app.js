@@ -92,6 +92,13 @@ document.addEventListener('alpine:init', () => {
 
         processingSubmission: false,
 
+        // Modal State
+        exportModalOpen: false,
+        importModalOpen: false,
+        confirmModalOpen: false,
+        exportDataStr: '',
+        importDataStr: '',
+
         // Feedback
         feedback: {
             visible: false,
@@ -828,6 +835,24 @@ document.addEventListener('alpine:init', () => {
                 this.showFeedback('error', '✗', 'INCORRECT', `Correct: ${q.answer}`);
                 this.flash('error');
                 if (Alpine.store('settings').display.enableSound) SoundManager.playPreset('error');
+
+                // BRUTAL MODE: Screen shake & aggressive logs
+                if (Alpine.store('settings').display.brutalFeedback) {
+                    this.flashClass = 'animate-shake bg-signal-red/10';
+                    setTimeout(() => this.flashClass = '', 400);
+
+                    const rudeMessages = [
+                        '[ERR] SEGFAULT: USER_COMPETENCE_NOT_FOUND',
+                        '[ERR] NULL POINTER EXCEPTION IN BRAIN.EXE',
+                        '[ERR] RETURN VALUE == TRASH',
+                        '[ERR] BUFFER UNDERFLOW: TRY THINKING HARDER',
+                        '[ERR] SYSTEM.EXIT(0) RECOMMENDED',
+                        '[ERR] 404: ANSWER NOT FOUND',
+                        '[ERR] SKILL_ISSUE_DETECTED',
+                        '[ERR] PEBKAC ERROR'
+                    ];
+                    this.log(rudeMessages[Math.floor(Math.random() * rudeMessages.length)]);
+                }
                 this.log(`[FAIL] ${q.display} = ${q.answer} | Got: ${this.userAnswer} | ${this.formatTime(responseTimeMs)}`);
 
                 if (this.consecutiveErrors >= 3 && !this.downgraded) {
@@ -1019,49 +1044,43 @@ document.addEventListener('alpine:init', () => {
             } catch (e) { }
         },
 
-        exportData() {
+        openExportModal() {
             const data = {
                 stats: localStorage.getItem('quantflow_stats'),
                 daily: localStorage.getItem('quantflow_daily'),
                 settings: localStorage.getItem('quantflow_settings'),
                 exportDate: new Date().toISOString()
             };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `quantflow_backup_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            this.log('[SYS] Data exported successfully.');
+            this.exportDataStr = JSON.stringify(data, null, 2);
+            this.exportModalOpen = true;
+            this.log('[SYS] Export data generated.');
         },
 
-        importData() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            input.onchange = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const data = JSON.parse(event.target.result);
-                        if (data.stats) localStorage.setItem('quantflow_stats', data.stats);
-                        if (data.daily) localStorage.setItem('quantflow_daily', data.daily);
-                        if (data.settings) localStorage.setItem('quantflow_settings', data.settings);
-                        this.loadSettings();
-                        this.loadStats();
-                        this.log('[SYS] Data imported successfully.');
-                    } catch (e) { this.log('[ERR] Failed to import data.'); }
-                };
-                reader.readAsText(file);
-            };
-            input.click();
+        openImportModal() {
+            this.importDataStr = '';
+            this.importModalOpen = true;
         },
 
-        clearData() {
-            if (!confirm('This will permanently delete all your progress. Are you sure?')) return;
+        processImport() {
+            try {
+                const data = JSON.parse(this.importDataStr);
+                if (data.stats) localStorage.setItem('quantflow_stats', data.stats);
+                if (data.daily) localStorage.setItem('quantflow_daily', data.daily);
+                if (data.settings) localStorage.setItem('quantflow_settings', data.settings);
+                this.loadSettings();
+                this.loadStats();
+                this.log('[SYS] Data imported successfully.');
+                this.importModalOpen = false;
+            } catch (e) {
+                this.log('[ERR] Invalid JSON format.');
+            }
+        },
+
+        openConfirmClear() {
+            this.confirmModalOpen = true;
+        },
+
+        performClear() {
             localStorage.removeItem('quantflow_stats');
             localStorage.removeItem('quantflow_daily');
             localStorage.removeItem('quantflow_settings');
@@ -1077,6 +1096,7 @@ document.addEventListener('alpine:init', () => {
             this.recentResponses = [];
             Alpine.store('settings').reset();
             this.log('[SYS] All data cleared.');
+            this.confirmModalOpen = false;
         },
 
         loadSettings() {
