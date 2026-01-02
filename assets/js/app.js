@@ -206,6 +206,8 @@ document.addEventListener('alpine:init', () => {
         heatmapExpanded: false,
         virtualKeys: [1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0],
 
+        processingSubmission: false,
+
         // Feedback
         feedback: {
             visible: false,
@@ -700,6 +702,7 @@ document.addEventListener('alpine:init', () => {
 
             this.stopTimer();
             this.liveTimer = 0;
+            this.processingSubmission = false;
 
             this.log('[SYS] Session reset.');
         },
@@ -769,6 +772,8 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
+            this.processingSubmission = false;
+
             this.questionStartTime = performance.now();
             this.userAnswer = '';
             this.startTimer();
@@ -815,7 +820,7 @@ document.addEventListener('alpine:init', () => {
 
             if (userVal === '-' || userVal === '−') return;
 
-            // Simple length check for now, can be improved
+            // Simple length check for now
             if (userVal.length >= expectedVal.length) {
                 this.submitAnswer();
             }
@@ -823,7 +828,9 @@ document.addEventListener('alpine:init', () => {
 
         submitAnswer() {
             if (!this.isSessionRunning() || !this.currentQuestion) return;
+            if (this.processingSubmission) return;
 
+            this.processingSubmission = true;
             this.stopTimer();
 
             const responseTime = (performance.now() - this.questionStartTime) / 1000; // in seconds

@@ -138,7 +138,7 @@ const Utils = {
     },
 
     generateNumberWithDigits(digits) {
-        if (digits === 1) return Utils.randomInt(0, 9);
+        if (digits === 1) return Utils.randomInt(1, 9);
         return Utils.randomInt(Math.pow(10, digits - 1), Math.pow(10, digits) - 1);
     },
 
@@ -439,6 +439,17 @@ const QuestionGenerator = {
 
     _base(category, tierData, a, b, op, symbol, extras = {}) {
         const answer = op(a, b);
+
+        // Guard against NaN/Null values
+        if (
+            isNaN(a) || a === null ||
+            isNaN(b) || b === null ||
+            isNaN(answer) || answer === null
+        ) {
+            console.error('[GEN] Generated invalid question (NaN/Null detected):', { a, b, symbol, answer });
+            return null;
+        }
+
         return {
             display: `${a < 0 ? `(${a})` : a} ${symbol} ${b < 0 ? `(${b})` : b}`,
             operand1: a, operand2: b, operator: symbol,
