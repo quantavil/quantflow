@@ -407,20 +407,34 @@
                 </div>
 
                 <!-- Virtual Keyboard (Mobile/Tablet Only) -->
-                <div class="lg:hidden grid grid-cols-3 gap-1 p-2 bg-charcoal border-t border-charcoal-border select-none"
+                <div class="lg:hidden p-2 bg-charcoal border-t border-charcoal-border select-none"
                     x-show="session.isActive && !session.isPaused">
-                    <template x-for="key in virtualKeys" :key="key">
-                        <button @click="inputKey(key)"
-                            class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors">
-                            <span x-text="key"></span>
+                    <!-- Top Row: Special Symbols (Half Height) -->
+                    <div class="grid grid-cols-2 gap-1 mb-1">
+                        <button @click="inputKey('/')"
+                            class="h-7 bg-charcoal-light border border-charcoal-border text-lg font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors flex items-center justify-center">
+                            /
                         </button>
-                    </template>
-                    <button @click="inputKey('backspace')"
-                        class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-signal-red active:text-white transition-colors group">
-                        <svg class="w-6 h-6 mx-auto">
-                            <use href="#icon-backspace" />
-                        </svg>
-                    </button>
+                        <button @click="inputKey('-')"
+                            class="h-7 bg-charcoal-light border border-charcoal-border text-lg font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors flex items-center justify-center">
+                            -
+                        </button>
+                    </div>
+                    <!-- Main Keyboard Grid -->
+                    <div class="grid grid-cols-3 gap-1">
+                        <template x-for="key in virtualKeys" :key="key">
+                            <button @click="inputKey(key)"
+                                class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors">
+                                <span x-text="key"></span>
+                            </button>
+                        </template>
+                        <button @click="inputKey('backspace')"
+                            class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-signal-red active:text-white transition-colors group">
+                            <svg class="w-6 h-6 mx-auto">
+                                <use href="#icon-backspace" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Feedback Console (Relocated) -->
