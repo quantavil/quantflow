@@ -135,7 +135,7 @@ const Utils = {
 
     countDigits: (n) => {
         if (n === null || n === undefined) return 0;
-        return Math.abs(n).toString().replace('.', '').replace('-', '').length;
+        return n.toString().replace(/[^0-9]/g, '').length;
     },
 
     generateNumberWithDigits(digits) {
@@ -174,10 +174,6 @@ const Utils = {
         return false;
     },
 
-    normalize(val) {
-        if (val === null || val === undefined) return '';
-        return val.toString().toLowerCase().replace(/\s+/g, '').replace(/,/g, '');
-    }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -243,8 +239,15 @@ class ComplexityCalculator {
         if (question.hasCarry) points += 1.5;
         if (question.hasBorrow) points += 1.8;
 
+        // Multiplication/Division Cognitive Load
+        if (question.category === 'multiplication' || question.category === 'division') {
+            const d1 = Utils.countDigits(question.operand1);
+            const d2 = Utils.countDigits(question.operand2);
+            if (d1 > 1 && d2 > 1) points += 1.5;
+        }
+
         const nearBoundary = (n) => {
-            if (!n) return false;
+            if (typeof n !== 'number' || !Number.isInteger(n)) return false;
             const mod = Math.abs(n) % 100;
             return mod <= 5 || mod >= 95;
         };
@@ -269,7 +272,10 @@ class ComplexityCalculator {
             'sqrt_estimate': 1.0,
             'what_percent': 1.0,
             'increase_decrease': 1.5,
-            'reverse': 2.0
+            'reverse': 2.0,
+            'tables_2-12': 0.5,
+            'squares_1-25': 0.5,
+            'add': 0.5, 'subtract': 0.8, 'multiply': 1.0, 'divide': 1.2, 'simplify': 0.5
         };
 
         for (const variant of variants) {
@@ -541,15 +547,18 @@ const QuestionGenerator = {
         const tierData = this._getTierData('subtraction', tier);
         if (!tierData) return null;
 
-        let a = Utils.generateNumberWithDigits(tierData.digits[0]);
-        let b = Utils.generateNumberWithDigits(tierData.digits[1]);
-
-        if (!variants.includes('allow_negative') && a < b) [a, b] = [b, a];
+        // Fundamental Shuffle: Randomly assign digit counts
+        const dOrder = Math.random() < 0.5 ? [0, 1] : [1, 0];
+        let a = Utils.generateNumberWithDigits(tierData.digits[dOrder[0]]);
+        let b = Utils.generateNumberWithDigits(tierData.digits[dOrder[1]]);
 
         if (variants.includes('decimals')) {
-            a = Utils.randomFloat(a * 0.1, a * 1.1, 1);
-            b = Utils.randomFloat(b * 0.1, b * 0.9, 1);
+            a = Utils.randomFloat(a * 0.1, a * 1.2, 1);
+            b = Utils.randomFloat(b * 0.1, b * 1.2, 1);
         }
+
+        // Only enforce positive if negatives are explicitly forbidden
+        if (!variants.includes('allow_negative') && a < b) [a, b] = [b, a];
 
         const base = this._base('subtraction', tierData, a, b, (x, y) => x - y, '−');
         if (!base) return null;
@@ -565,7 +574,7 @@ const QuestionGenerator = {
         if (!tierData) return null;
 
         let a, b;
-        if (variants.includes('tables_2-12')) {
+        if (variants.includes('tables_2-12') && ['1x1', '1x2'].includes(tier)) {
             a = Utils.randomInt(2, 12);
             b = Utils.randomInt(2, 12);
         } else if (variants.includes('squares_1-25')) {
@@ -585,7 +594,7 @@ const QuestionGenerator = {
         const tierData = this._getTierData('division', tier);
         if (!tierData) return null;
 
-        const divisor = Utils.generateNumberWithDigits(tierData.digits[1]);
+        let divisor = Utils.generateNumberWithDigits(tierData.digits[1]);
         const maxDiv = Math.pow(10, tierData.digits[0]) - 1;
         const minDiv = Math.pow(10, tierData.digits[0] - 1);
 
@@ -601,6 +610,7 @@ const QuestionGenerator = {
             dividend = divisor * quotient;
             answer = quotient;
         } else if (mode === 'remainder') {
+            if (divisor <= 1) divisor = Utils.randomInt(2, 9);
             const quotient = Utils.randomInt(2, 20);
             const maxRem = divisor - 1;
             remainder = maxRem > 0 ? Utils.randomInt(1, maxRem) : 0;
@@ -627,6 +637,7 @@ const QuestionGenerator = {
         const tierData = this._getTierData('powers', tier);
         if (!tierData) return null;
 
+        const base = Utils.randomInt(tierData.range[0], tierData.range[1]);
         const power = variants.includes('custom') ? Utils.randomInt(2, 4) :
             variants.includes('cubes') ? 3 :
                 variants.includes('squares') ? 2 : tierData.power;
@@ -698,14 +709,17 @@ const QuestionGenerator = {
             answer = parseFloat((isIncrease ? base + change : base - change).toFixed(2));
         } else if (variants.includes('reverse')) {
             const original = Utils.randomInt(50, 200);
-            display = `X + ${percent}% = ${Math.round(original * (1 + percent / 100))}`;
+            display = `X + ${percent}% = ${parseFloat((original * (1 + percent / 100)).toFixed(2))}`;
             answer = original;
         } else {
             display = `${percent}% of ${base}`;
             answer = parseFloat(((percent / 100) * base).toFixed(2));
         }
 
-        return { display, operator: '%', answer, category: 'percentages', tier, variants };
+        return {
+            display, operator: '%', answer, category: 'percentages', tier, variants,
+            operand1: base, operand2: percent
+        };
     },
 
     fractions(tier, variants) {
@@ -741,7 +755,11 @@ const QuestionGenerator = {
         const op = opModes.length > 0 ? opModes[Math.floor(Math.random() * opModes.length)] : 'add';
         display = operations[op](f1, f2);
 
-        return { display, operator: '/', answer: fResult.toFraction(), answerNum: fResult.n, answerDen: fResult.d, category: 'fractions', tier, variants };
+        return {
+            display, operator: '/', answer: fResult.toFraction(), answerNum: fResult.n, answerDen: fResult.d,
+            category: 'fractions', tier, variants,
+            operand1: f1.toFraction(), operand2: f2.toFraction()
+        };
     }
 };
 
