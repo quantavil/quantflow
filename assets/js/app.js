@@ -752,12 +752,6 @@ document.addEventListener('alpine:init', () => {
             // Submit to Engine
             const engineResult = this.engine.submitAnswer(this.currentQuestion, responseTime, isCorrect);
             this.recordResponse(isCorrect, isFast, responseTime * 1000);
-
-            const delay = isCorrect ? 300 : 1200;
-            this.nextQuestionTimeout = setTimeout(() => {
-                this.feedback.visible = false;
-                this.generateQuestion();
-            }, delay);
         },
 
         recordResponse(isCorrect, isFast, responseTimeMs) {
