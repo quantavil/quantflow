@@ -200,10 +200,6 @@ document.addEventListener('alpine:init', () => {
             enableSound: false,
             brutalFeedback: true
         },
-        timing: {
-            baseTimeMultiplier: 1.0,
-            complexityMultiplier: 0.6
-        },
         init() {
             const saved = JSON.parse(localStorage.getItem('quantflow_settings') || '{}');
             if (saved.display) Object.assign(this.display, saved.display);
@@ -320,10 +316,7 @@ document.addEventListener('alpine:init', () => {
             { key: 'brutalFeedback', label: 'Brutal Feedback Mode' }
         ],
 
-        timingSettings: [
-            { key: 'baseTimeMultiplier', label: 'Base Time Multiplier', min: 0.5, max: 2.0, step: 0.1 },
-            { key: 'complexityMultiplier', label: 'Complexity Multiplier', min: 0.1, max: 1.0, step: 0.1 }
-        ],
+
 
         // ═══════════════════════════════════════════════════════════════════════
         // COMPUTED PROPERTIES

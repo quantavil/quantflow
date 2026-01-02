@@ -748,16 +748,9 @@ class Engine {
         const tierData = OPERATIONS[category]?.tiers.find(t => t.id === tier);
         const baseTime = tierData?.baseTime || 3.0;
 
-        // Apply settings multipliers if available
+        // Multipliers fixed to defaults
         let baseMult = 1.0;
         let compMult = 0.6;
-        if (window.Alpine && window.Alpine.store('settings')) {
-            const timing = window.Alpine.store('settings').timing;
-            if (timing) {
-                baseMult = timing.baseTimeMultiplier || 1.0;
-                compMult = timing.complexityMultiplier || 0.6;
-            }
-        }
 
         q.targetTime = Math.max(1.0, (baseTime * baseMult) + (complexity * compMult));
 

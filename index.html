@@ -591,21 +591,7 @@
                 <button @click="settingsOpen = false" class="close-btn">&times;</button>
             </div>
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
-                <!-- Timing Settings -->
-                <div>
-                    <div class="panel-section-title">TIMING COEFFICIENTS</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <template x-for="setting in timingSettings" :key="setting.key">
-                            <label
-                                class="flex items-center justify-between bg-charcoal-light p-2 border border-charcoal-border">
-                                <span class="text-xs" x-text="setting.label"></span>
-                                <input type="number" x-model.number="$store.settings.timing[setting.key]"
-                                    @change="$store.settings.save()" :step="setting.step" :min="setting.min"
-                                    :max="setting.max" class="w-16 input-field text-right">
-                            </label>
-                        </template>
-                    </div>
-                </div>
+                <!-- Timing Settings Removed -->
 
                 <!-- Display Settings -->
                 <div>
