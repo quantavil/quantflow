@@ -526,22 +526,7 @@
                     </div>
                 </div>
 
-                <!-- SM-2 Queue Status -->
-                <div class="panel-section">
-                    <div class="panel-section-title">
-                        <span>SRS QUEUE STATUS</span>
-                        <button @click="updateSRSDisplay"
-                            class="text-xs text-text-dim hover:text-terminal-green">↻</button>
-                    </div>
-                    <div class="stats-grid grid-cols-3">
-                        <template x-for="srs in srsDisplay" :key="srs.label">
-                            <div class="stat-box">
-                                <div class="text-xs text-text-muted" x-text="srs.label"></div>
-                                <div class="text-lg font-bold" :class="srs.colorClass" x-text="srs.value"></div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
+
 
                 <!-- Category Stats (Moved from Left Panel) -->
                 <div class="panel-section bg-charcoal-lighter">

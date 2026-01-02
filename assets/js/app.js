@@ -268,13 +268,14 @@ document.addEventListener('alpine:init', () => {
             const catStats = this.getCurrentStats();
             const avgTime = catStats.latencies.length ?
                 this.formatTime(catStats.latencies.reduce((a, b) => a + b, 0) / catStats.latencies.length) : '--';
-            const arcade = this.engine.arcade;
+
+            const acc = catStats.totalAnswered ? (catStats.totalCorrect / catStats.totalAnswered * 100).toFixed(1) + '%' : '--';
 
             return [
-                { label: 'Score', value: arcade.sessionScore.toLocaleString(), colorClass: 'text-terminal-green' },
-                { label: 'Multiplier', value: `×${arcade.getMultiplier().toFixed(1)}`, colorClass: 'text-signal-orange' },
+                { label: 'Accuracy', value: acc, colorClass: this.getAccuracyClass(parseFloat(acc)) },
+                { label: 'Best Streak', value: catStats.bestStreak, colorClass: 'text-terminal-green' },
                 { label: 'Avg Time', value: avgTime, colorClass: 'text-text-primary' },
-                { label: 'Total XP', value: arcade.totalXP.toLocaleString(), colorClass: 'text-text-muted' }
+                { label: 'Total', value: catStats.totalAnswered.toLocaleString(), colorClass: 'text-text-muted' }
             ];
         },
 
@@ -368,12 +369,7 @@ document.addEventListener('alpine:init', () => {
             ];
         },
 
-        get srsDisplay() {
-            return [
-                { label: 'Complexity', value: this.currentQuestion?.complexity?.toFixed(1) || '-', colorClass: 'text-text-primary' },
-                { label: 'Target', value: this.currentQuestion?.targetTime?.toFixed(1) + 's' || '-', colorClass: 'text-text-muted' }
-            ];
-        },
+
 
         get heatmapCells() {
             const cells = [];
@@ -804,9 +800,7 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        updateSRSDisplay() {
-            // No-op for now
-        },
+
 
         // ═══════════════════════════════════════════════════════════════════════
         // ANSWER HANDLING
@@ -840,10 +834,7 @@ document.addEventListener('alpine:init', () => {
             // Submit to Engine
             const engineResult = this.engine.submitAnswer(this.currentQuestion, responseTime, isCorrect);
 
-            // Logging
-            if (engineResult && isCorrect) {
-                this.log(`[SCORE] +${engineResult.points} pts (×${engineResult.multiplier.toFixed(1)}) | Streak: ${engineResult.streak}`);
-            }
+            // Logging - Score log removed, sticking to [OK]/[SLOW] logs below
 
             this.recordResponse(isCorrect, isFast, responseTime * 1000);
 
