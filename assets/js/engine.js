@@ -118,7 +118,6 @@ const OPERATIONS = {
             { id: 'subtract', label: 'Subtraction', default: false },
             { id: 'multiply', label: 'Multiplication', default: false },
             { id: 'divide', label: 'Division', default: false },
-            { id: 'simplify', label: 'Simplify', default: false },
             { id: 'mixed', label: 'Mixed Numbers', default: false }
         ]
     }
@@ -264,18 +263,21 @@ class ComplexityCalculator {
         const variants = question.variants || [];
 
         const variantCosts = {
-            'with_negatives': 1.0,
+            'allow_negative': 1.0,
             'decimals': 1.5,
             'mixed': 2.5,
             'remainder': 1.0,
             'decimal_2dp': 1.5,
             'sqrt_estimate': 1.0,
+            'cubes': 1.5,
+            'custom': 2.0,
+            'cbrt_perfect': 1.5,
             'what_percent': 1.0,
             'increase_decrease': 1.5,
             'reverse': 2.0,
             'tables_2-12': 0.5,
             'squares_1-25': 0.5,
-            'add': 0.5, 'subtract': 0.8, 'multiply': 1.0, 'divide': 1.2, 'simplify': 0.5
+            'add': 0.5, 'subtract': 0.8, 'multiply': 1.0, 'divide': 1.2
         };
 
         for (const variant of variants) {
@@ -751,7 +753,7 @@ const QuestionGenerator = {
             }
         };
 
-        const opModes = ['simplify', 'subtract', 'multiply', 'divide', 'mixed', 'add'].filter(v => variants.includes(v));
+        const opModes = ['subtract', 'multiply', 'divide', 'mixed', 'add'].filter(v => variants.includes(v));
         const op = opModes.length > 0 ? opModes[Math.floor(Math.random() * opModes.length)] : 'add';
         display = operations[op](f1, f2);
 
@@ -786,7 +788,7 @@ class Engine {
         // Hybrid target time: tier baseTime + complexity modifier
         const tierData = OPERATIONS[category]?.tiers.find(t => t.id === tier);
         const baseTime = tierData?.baseTime || 3.0;
-        q.targetTime = Math.max(1.0, baseTime + (complexity * 0.3));
+        q.targetTime = Math.max(1.0, baseTime + (complexity * 0.6));
 
         return q;
     }

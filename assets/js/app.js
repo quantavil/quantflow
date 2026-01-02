@@ -967,11 +967,28 @@ document.addEventListener('alpine:init', () => {
             const user = userAnswer.toString().toLowerCase().replace(/\s+/g, '').replace(/,/g, '');
             const correct = correctAnswer.toString().toLowerCase().replace(/\s+/g, '').replace(/,/g, '');
 
+            // Exact match string check (fast path)
             if (user === correct) return true;
 
-            const userNum = parseFloat(user);
-            const correctNum = parseFloat(correct);
+            // Helper to parse "A/B" or decimals
+            const parseMathValue = (val) => {
+                if (!val) return NaN;
+                if (val.includes('/')) {
+                    const parts = val.split('/');
+                    if (parts.length === 2) {
+                        const n = parseFloat(parts[0]);
+                        const d = parseFloat(parts[1]);
+                        if (!isNaN(n) && !isNaN(d) && d !== 0) return n / d;
+                    }
+                }
+                return parseFloat(val);
+            };
+
+            const userNum = parseMathValue(user);
+            const correctNum = parseMathValue(correct);
+
             if (!isNaN(userNum) && !isNaN(correctNum)) {
+                // Tolerance comparison
                 return Math.abs(userNum - correctNum) < 0.01;
             }
 
