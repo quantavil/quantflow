@@ -329,142 +329,154 @@
                 </div>
             </div>
 
-            <!-- Main Content Area Scrollable Wrapper -->
-            <div class="flex-1 overflow-y-auto custom-scrollbar bg-charcoal">
-                <!-- Main Question Area -->
-                <div class="h-[280px] sm:h-[380px] flex flex-col items-center justify-center relative border border-charcoal-border m-2 sm:m-4 bg-charcoal-light flex-shrink-0"
-                    :class="flashClass" x-ref="questionContainer">
+            <!-- Main Content Area - Scroll Snap Container -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar bg-charcoal snap-y snap-mandatory"
+                style="scroll-snap-type: y mandatory;">
 
-                    <!-- Pause Overlay -->
-                    <div x-show="session.isPaused" x-cloak x-transition.opacity
-                        class="absolute inset-0 bg-charcoal/90 flex flex-col items-center justify-center z-20">
-                        <div class="text-terminal-green text-4xl font-bold tracking-widest mb-4">PAUSED</div>
-                        <div class="text-text-muted text-xs animate-pulse">PRESS ESC TO RESUME</div>
-                    </div>
+                <!-- ═══════════════════════════════════════════════════════════════════
+                     PAGE 1: Question Board + Bottom Bar + Keyboard (Full Height Snap)
+                     ═══════════════════════════════════════════════════════════════════ -->
+                <div class="min-h-full flex flex-col snap-start snap-always" style="scroll-snap-align: start;">
 
-                    <!-- Question Display -->
-                    <div class="text-center">
-                        <div class="text-4xl md:text-6xl font-bold tracking-tight mb-8" x-html="questionDisplayHtml">
+                    <!-- Main Question Area -->
+                    <div class="flex-1 flex flex-col items-center justify-center relative border border-charcoal-border m-2 sm:m-4 bg-charcoal-light"
+                        :class="flashClass" x-ref="questionContainer">
+
+                        <!-- Pause Overlay -->
+                        <div x-show="session.isPaused" x-cloak x-transition.opacity
+                            class="absolute inset-0 bg-charcoal/90 flex flex-col items-center justify-center z-20">
+                            <div class="text-terminal-green text-4xl font-bold tracking-widest mb-4">PAUSED</div>
+                            <div class="text-text-muted text-xs animate-pulse">PRESS ESC TO RESUME</div>
                         </div>
 
-                        <!-- Input Area -->
-                        <div class="relative flex flex-col items-center">
-                            <input type="text" x-model="userAnswer" x-ref="answerInput"
-                                @keydown.enter.prevent="submitAnswer" @input="handleInput"
-                                :disabled="!session.isActive || session.isPaused" inputmode="none"
-                                class="w-full max-w-[280px] h-16 bg-charcoal border-2 border-charcoal-border text-4xl text-center font-bold text-text-primary input-field !focus:border-terminal-green transition-colors"
-                                placeholder="?" autocomplete="off">
-                        </div>
-
-                        <!-- Timer Display -->
-                        <div class="mt-6 flex items-center justify-center gap-4">
-                            <div class="text-2xl font-bold tabular-nums" :class="timerColorClass"
-                                x-show="$store.settings.display.showTimer">
-                                <span x-text="liveTimerDisplay"></span><span class="text-sm">s</span>
+                        <!-- Question Display -->
+                        <div class="text-center">
+                            <div class="text-4xl md:text-6xl font-bold tracking-tight mb-8"
+                                x-html="questionDisplayHtml">
                             </div>
 
-                        </div>
-                    </div>
+                            <!-- Input Area -->
+                            <div class="relative flex flex-col items-center">
+                                <input type="text" x-model="userAnswer" x-ref="answerInput"
+                                    @keydown.enter.prevent="submitAnswer" @input="handleInput"
+                                    :disabled="!session.isActive || session.isPaused" inputmode="none"
+                                    class="w-full max-w-[280px] h-16 bg-charcoal border-2 border-charcoal-border text-4xl text-center font-bold text-text-primary input-field !focus:border-terminal-green transition-colors"
+                                    placeholder="?" autocomplete="off">
+                            </div>
 
-                    <!-- Subtle Feedback Overlay (Success/Warning) -->
-                    <div class="absolute bottom-4 right-4 flex items-end justify-end transition-all duration-150 z-30"
-                        x-show="feedback.visible && feedback.type !== 'error'" x-cloak
-                        :class="feedback.visible ? 'opacity-100 translate-y-0' : 'opacity-0 pointer-events-none translate-y-2'">
-                        <div class="bg-charcoal p-3 flex items-center gap-3 shadow-2xl" :class="feedbackBorderClass">
-                            <div class="text-2xl" :class="feedbackColorClass" x-text="feedback.icon"></div>
-                            <div class="text-left">
-                                <div class="text-xs font-bold leading-none" :class="feedbackColorClass"
-                                    x-text="feedback.text"></div>
-                                <div class="text-[10px] text-text-muted mt-0.5 tabular-nums" x-text="feedback.detail">
+                            <!-- Timer Display -->
+                            <div class="mt-6 flex items-center justify-center gap-4">
+                                <div class="text-2xl font-bold tabular-nums" :class="timerColorClass"
+                                    x-show="$store.settings.display.showTimer">
+                                    <span x-text="liveTimerDisplay"></span><span class="text-sm">s</span>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Prominent Error Overlay (Centered) -->
-                    <div class="absolute inset-0 flex items-center justify-center z-40 bg-black/40 backdrop-blur-[2px]"
-                        x-show="feedback.visible && feedback.type === 'error'" x-cloak
-                        x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
-                        <div
-                            class="bg-charcoal border-2 border-signal-red p-6 shadow-[0_0_40px_rgba(255,75,75,0.3)] text-center animate-shake w-full max-w-[320px] mx-4">
-                            <div class="text-5xl mb-3 text-signal-red" x-text="feedback.icon"></div>
-                            <div class="text-3xl font-bold tracking-tight text-signal-red mb-2" x-text="feedback.text">
-                            </div>
-                            <div class="text-lg font-medium text-text-primary px-4 py-2 bg-signal-red/10 border border-signal-red/20 tabular-nums"
-                                x-text="feedback.detail"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bottom Bar: Recent Responses + Session Controls -->
-                <div
-                    class="min-h-14 border-y border-charcoal-border flex flex-col sm:flex-row items-center justify-between px-4 py-2 sm:py-0 gap-3 bg-charcoal-light flex-shrink-0">
-                    <!-- Recent Responses -->
-                    <div class="flex items-center gap-2 overflow-x-auto flex-1">
-                        <span class="text-xs text-text-muted flex-shrink-0">RECENT:</span>
-                        <div class="flex gap-1">
-                            <template x-for="(response, idx) in recentResponses.slice(0, 10)" :key="idx">
-                                <div class="response-chip" :class="getResponseClass(response)"
-                                    :title="formatTime(response.time)" x-text="response.correct ? '✓' : '✗'">
+                        <!-- Subtle Feedback Overlay (Success/Warning) -->
+                        <div class="absolute bottom-4 right-4 flex items-end justify-end transition-all duration-150 z-30"
+                            x-show="feedback.visible && feedback.type !== 'error'" x-cloak
+                            :class="feedback.visible ? 'opacity-100 translate-y-0' : 'opacity-0 pointer-events-none translate-y-2'">
+                            <div class="bg-charcoal p-3 flex items-center gap-3 shadow-2xl"
+                                :class="feedbackBorderClass">
+                                <div class="text-2xl" :class="feedbackColorClass" x-text="feedback.icon"></div>
+                                <div class="text-left">
+                                    <div class="text-xs font-bold leading-none" :class="feedbackColorClass"
+                                        x-text="feedback.text"></div>
+                                    <div class="text-[10px] text-text-muted mt-0.5 tabular-nums"
+                                        x-text="feedback.detail">
+                                    </div>
                                 </div>
-                            </template>
+                            </div>
+                        </div>
+
+                        <!-- Prominent Error Overlay (Centered) -->
+                        <div class="absolute inset-0 flex items-center justify-center z-40 bg-black/40 backdrop-blur-[2px]"
+                            x-show="feedback.visible && feedback.type === 'error'" x-cloak
+                            x-transition:enter="transition ease-out duration-200"
+                            x-transition:enter-start="opacity-0 scale-95"
+                            x-transition:enter-end="opacity-100 scale-100">
+                            <div
+                                class="bg-charcoal border-2 border-signal-red p-6 shadow-[0_0_40px_rgba(255,75,75,0.3)] text-center animate-shake w-full max-w-[320px] mx-4">
+                                <div class="text-5xl mb-3 text-signal-red" x-text="feedback.icon"></div>
+                                <div class="text-3xl font-bold tracking-tight text-signal-red mb-2"
+                                    x-text="feedback.text">
+                                </div>
+                                <div class="text-lg font-medium text-text-primary px-4 py-2 bg-signal-red/10 border border-signal-red/20 tabular-nums"
+                                    x-text="feedback.detail"></div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Session Controls (Integrated) -->
-                    <div class="flex gap-2 flex-shrink-0">
-                        <button @click="session.isActive ? togglePause() : startSession()"
-                            class="px-4 py-1.5 font-bold text-xs transition-colors"
-                            :class="!session.isActive || session.isPaused ? 'bg-terminal-green text-charcoal hover:bg-terminal-green-dim' : 'bg-charcoal border border-signal-orange text-signal-orange hover:bg-signal-orange/10'"
-                            x-text="!session.isActive ? 'START' : (session.isPaused ? 'RESUME' : 'PAUSE')">
-                        </button>
-                        <button @click="resetSession"
-                            class="btn-ghost !text-text-muted hover:!border-signal-red hover:!text-signal-red">
-                            RESET
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Virtual Keyboard (Mobile/Tablet Only) -->
-                <div class="lg:hidden p-2 bg-charcoal border-t border-charcoal-border select-none"
-                    x-show="session.isActive && !session.isPaused">
-                    <!-- Top Row: Special Symbols (Half Height) -->
-                    <div class="grid grid-cols-2 gap-1 mb-1">
-                        <button @click="inputKey('/')"
-                            class="h-7 bg-charcoal-light border border-charcoal-border text-lg font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors flex items-center justify-center">
-                            /
-                        </button>
-                        <button @click="inputKey('-')"
-                            class="h-7 bg-charcoal-light border border-charcoal-border text-lg font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors flex items-center justify-center">
-                            -
-                        </button>
-                    </div>
-                    <!-- Main Keyboard Grid -->
-                    <div class="grid grid-cols-3 gap-1">
-                        <template x-for="key in virtualKeys" :key="key">
-                            <button @click="inputKey(key)"
-                                class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors">
-                                <span x-text="key"></span>
+                    <!-- Virtual Keyboard (Mobile/Tablet Only) -->
+                    <div class="lg:hidden p-2 bg-charcoal border-t border-charcoal-border select-none flex-shrink-0"
+                        x-show="session.isActive && !session.isPaused">
+                        <!-- Top Row: Special Symbols (Half Height) -->
+                        <div class="grid grid-cols-2 gap-1 mb-1">
+                            <button @click="inputKey('/')"
+                                class="h-7 bg-charcoal-light border border-charcoal-border text-lg font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors flex items-center justify-center">
+                                /
                             </button>
-                        </template>
-                        <button @click="inputKey('backspace')"
-                            class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-signal-red active:text-white transition-colors group">
-                            <svg class="w-6 h-6 mx-auto">
-                                <use href="#icon-backspace" />
-                            </svg>
-                        </button>
+                            <button @click="inputKey('-')"
+                                class="h-7 bg-charcoal-light border border-charcoal-border text-lg font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors flex items-center justify-center">
+                                -
+                            </button>
+                        </div>
+                        <!-- Main Keyboard Grid -->
+                        <div class="grid grid-cols-3 gap-1">
+                            <template x-for="key in virtualKeys" :key="key">
+                                <button @click="inputKey(key)"
+                                    class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-terminal-green active:text-charcoal transition-colors">
+                                    <span x-text="key"></span>
+                                </button>
+                            </template>
+                            <button @click="inputKey('backspace')"
+                                class="h-14 bg-charcoal-light border border-charcoal-border text-xl font-bold hover:bg-charcoal-lighter active:bg-signal-red active:text-white transition-colors group">
+                                <svg class="w-6 h-6 mx-auto">
+                                    <use href="#icon-backspace" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Bar: Recent Responses + Session Controls (At Bottom) -->
+                    <div
+                        class="min-h-14 border-t border-charcoal-border flex flex-col sm:flex-row items-center justify-between px-4 py-2 sm:py-0 gap-3 bg-charcoal-light flex-shrink-0 mt-auto">
+                        <!-- Recent Responses -->
+                        <div class="flex items-center gap-2 overflow-x-auto flex-1">
+                            <span class="text-xs text-text-muted flex-shrink-0">RECENT:</span>
+                            <div class="flex gap-1">
+                                <template x-for="(response, idx) in recentResponses.slice(0, 10)" :key="idx">
+                                    <div class="response-chip" :class="getResponseClass(response)"
+                                        :title="formatTime(response.time)" x-text="response.correct ? '✓' : '✗'">
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Session Controls (Integrated) -->
+                        <div class="flex gap-2 flex-shrink-0">
+                            <button @click="session.isActive ? togglePause() : startSession()"
+                                class="px-4 py-1.5 font-bold text-xs transition-colors"
+                                :class="!session.isActive || session.isPaused ? 'bg-terminal-green text-charcoal hover:bg-terminal-green-dim' : 'bg-charcoal border border-signal-orange text-signal-orange hover:bg-signal-orange/10'"
+                                x-text="!session.isActive ? 'START' : (session.isPaused ? 'RESUME' : 'PAUSE')">
+                            </button>
+                            <button @click="resetSession"
+                                class="btn-ghost !text-text-muted hover:!border-signal-red hover:!text-signal-red">
+                                RESET
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Feedback Console (Relocated) -->
-                <div class="p-2 sm:p-4 bg-charcoal">
-                    <div class="border border-charcoal-border bg-charcoal-light flex flex-col shadow-inner">
+                <!--PAGE 2: Feedback Console (Full Height Snap) -->
+                <div class="min-h-full flex flex-col snap-start snap-always p-2 sm:p-4 bg-charcoal"
+                    style="scroll-snap-align: start;">
+                    <div class="border border-charcoal-border bg-charcoal-light flex flex-col shadow-inner flex-1">
                         <div class="panel-header">
                             <span class="text-xs text-text-muted font-medium tracking-wide">FEEDBACK CONSOLE</span>
                         </div>
-                        <div class="h-[250px] sm:h-[400px] overflow-y-auto p-4 text-xs font-mono space-y-2 bg-black/20"
-                            x-ref="console">
+                        <div class="flex-1 overflow-y-auto p-4 text-xs font-mono space-y-2 bg-black/20" x-ref="console">
                             <template x-for="(entry, idx) in consoleLogs" :key="idx">
                                 <div class="leading-relaxed border-l-2 pl-3"
                                     :class="[entry.colorClass, entry.colorClass.replace('text-', 'border-')]"
