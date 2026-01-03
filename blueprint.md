@@ -1,160 +1,326 @@
-# QuantFlow Core Blueprint
+# Engine.js Deep Dive: Architecture & Random Generation
 
-QuantFlow is a high-performance math proficiency terminal designed to build "mental calculation muscle memory" through adaptive learning and high-frequency feedback. This document outlines the fundamental logic, architectural patterns, and the inner workings of its core engine.
+## Overview
 
----
-
-## 1. High-Level Architecture
-
-QuantFlow follows a **Hybrid Model-View-Controller (MVC)** pattern implemented using modern vanilla JavaScript and Alpine.js.
-
--   **Model (`assets/js/engine.js`)**: The logic layer. It contains the mathematical definitions, question generators, complexity calculators, and the **Arcade Scoring System** (Streak-based difficulty & XP).
--   **Controller/State Layer (`assets/js/app.js`)**: The Alpine.js application. It manages UI state, session orchestration, user authentication, and coordinates between the Engine and the View.
--   **View (`index.html` + Tailwind CSS)**: The presentation layer. A terminal-inspired interface that provides high-speed visual and auditory feedback.
+`engine.js` is the mathematical heart of QuantFlow. It generates questions, calculates their complexity, and manages the arcade scoring system. Most importantly, it creates the **illusion of perfect randomness** while secretly applying intelligent constraints that keep users in the optimal challenge zone.
 
 ---
 
-## 2. Fundamental Logic & "Main Function"
+## 1. The Randomness Philosophy
 
-The "Main Function" of QuantFlow is a **Closed-Loop Feedback System**:
+### A. True Randomness vs Perceived Randomness
 
-1.  **Session Start**: User selects a category and tier manually. The system loads Speed Factors from `localStorage`.
-2.  **Adaptive Generation**: The Engine generates a question with difficulty scaled by the current **streak** within the selected tier.
-3.  **Real-time Performance Measurement**: A high-resolution timer (`performance.now()`) measures latency to the millisecond.
-4.  **Submission & Evaluation**: Upon answer, the Engine evaluates accuracy and speed against a dynamically calculated "Par Time".
-5.  **Arcade Scoring**: Points are awarded based on complexity, speed, and streak multiplier. The streak affects the difficulty of the next question.
-
----
-
-## 3. Deep Dive: `engine.js` (The Core Engine)
-
-`engine.js` is the brain of QuantFlow. It is composed of several specialized classes and objects working in concert.
-
-### A. Mathematical Definitions (`OPERATIONS`)
-This object defines every math category (e.g., `addition`, `fractions`, `roots`). Each category includes:
--   **Tiers**: Discrete complexity levels (e.g., "1+1" vs "3+3"). User manually selects their desired tier.
--   **Variants**: Modifiers that change the nature of the math (e.g., "with negatives", "decimals").
-
-### B. The Complexity Calculator (`ComplexityCalculator`)
-Uses a **Point System** to evaluate a question's mental load:
--   **Digit Complexity**: Points based on the number of digits (multiplicative for multiplication).
--   **Operation Weight**: Base weights (e.g., Addition = 0, Roots = 3.5).
--   **Cognitive Load**: Penalties for "Carries" in addition or "Borrows" in subtraction.
--   **Variant Modifiers**: Extra points for decimals, negative numbers, or complex fractions.
--   **Fraction Class**: Internal helper class to handle precise fractional arithmetic and simplification without external dependencies.
-
-### C. The Arcade System (`ArcadeSystem`)
-A session-based scoring system that replaces traditional rating systems:
-
-#### Streak-Based Difficulty Scaling
-Difficulty scales **within the selected tier** based on the current streak:
-
-| Streak | Difficulty | Effect |
-|--------|------------|--------|
-| 0-4    | 0.0 → 0.4  | Easier questions, pure random generation |
-| 5-9    | 0.5 → 0.9  | Balanced, some forced carries/borrows |
-| 10+    | 1.0        | Max complexity: forces carries, borrows, edge cases |
-| Error  | −0.3       | Difficulty drops back down |
-
-```
-updateDifficulty():
-  if streak >= 10: difficulty = 1.0
-  else if streak >= 5: difficulty = 0.5 + (streak - 5) * 0.1
-  else: difficulty = streak * 0.1
-```
-
-#### Score Formula
-Points are calculated on every correct answer:
-
-```
-Points = BasePoints × Complexity × SpeedBonus × Multiplier
-
-Where:
-  - BasePoints = 10 (constant)
-  - Complexity = from ComplexityCalculator (e.g., 3.5 for a hard question)
-  - SpeedBonus = 2.0 (very fast) | 1.5 (under par) | 1.0 (slow)
-  - Multiplier = 1.0 + min(streak × 0.1, 2.0)  → caps at 3.0× at streak 20
-```
-
-#### Multiplier Progression
-| Streak | Multiplier |
-|--------|------------|
-| 0      | ×1.0       |
-| 5      | ×1.5       |
-| 10     | ×2.0       |
-| 15     | ×2.5       |
-| 20+    | ×3.0 (max) |
-
-#### Error Handling
-On incorrect answer:
-- Streak resets to 0
-- Difficulty drops by 0.3 (minimum 0.0)
-- Multiplier resets to ×1.0
-
-### D. Difficulty Controller (`DifficultyController`)
-Applies intra-tier difficulty scaling to question generation:
+The engine uses **`Math.random()`** as its foundation, which is JavaScript's pseudo-random number generator. Every number generation starts here:
 
 ```javascript
-getModifiers(difficulty):
-  return {
-    forceCarry: difficulty >= 0.7,
-    forceBorrow: difficulty >= 0.7,
-    preferLargeNumbers: difficulty >= 0.5,
-    preferEdgeCases: difficulty >= 0.8  // Numbers near 10, 100, etc.
-  }
+Utils.randomInt(min, max) => Math.floor(Math.random() * (max - min + 1)) + min
 ```
 
-At high difficulty (streak 7+), questions are regenerated to ensure they include carries/borrows, making the math genuinely harder without changing the tier.
+**Critical Insight:** Users don't actually want pure randomness—they want *variety without repetition* and *gradual difficulty*. The engine achieves this through layered constraints.
 
-### E. Speed Calibration & Par Time
-The most unique part of QuantFlow's logic:
+### B. How It Feels Random to Users
 
--   **`SpeedFactorUpdater`**: Uses an **Exponential Moving Average (EMA)** to track how many "Complexity Points" a user can process per second. Maintains both global and category-specific speeds.
--   **`ParTimeCalculator`**: Calculates the "Target Time" for a question:
-    ```
-    Par Time = (Complexity Points × User Speed Factor) + Base Reaction Time
-    ```
--   **Flow State Buffer**: Targets 85% of user's max capability to keep them in the "Flow" zone.
+1. **Digit Shuffling** (Subtraction): Numbers with different digit counts are randomly assigned to operand positions
+   ```javascript
+   const dOrder = Math.random() < 0.5 ? [0, 1] : [1, 0];
+   a = generateNumberWithDigits(digits[dOrder[0]]);
+   ```
+   Result: `73 − 8` or `8 − 73` appear with equal probability, creating variety.
 
-### F. Question Generator (`QuestionGenerator`)
-A factory that produces questions. Handles complex logic like:
-- Perfect squares/cubes for roots
-- Modular arithmetic for division
-- Fractional arithmetic and simplification via internal `Fraction` class.
+2. **Variant Randomization**: When multiple variants are active (e.g., "exact division" + "modulo"), one is picked randomly per question
+   ```javascript
+   const mode = activeModes[Math.floor(Math.random() * activeModes.length)];
+   ```
 
----
+3. **Pool-Based Percentages**: Instead of truly random percentages, questions pick from curated pools
+   ```javascript
+   pools[1] = [10, 20, 25, 50, 75, 100]  // Simple
+   pools[3] = [5,10,12,15,17,20,23,25...] // Complex
+   ```
+   This ensures "nice" percentages appear while still feeling unpredictable.
 
-## 4. Integration & Feedback (`app.js`)
-
-While `engine.js` handles the "math," `app.js` handles the "flow":
-
--   **Sound & Particles**: Triggers auditory cues and visual rewards based on performance markers (Fast vs Slow vs Error).
--   **Queue Management**: Missed questions are pushed into an `errorQueue` to be retried shortly, ensuring reinforcement learning.
--   **Visual Feedback**: "Brutal Feedback Mode" displays errors prominently to discourage guessing.
--   **Session Stats Display**:
-    - **Score**: Current session points
-    - **Multiplier**: Current streak multiplier (×1.0 to ×3.0)
-    - **Total XP**: All-time accumulated points (persisted in localStorage)
--   **Persistence**: Automates syncing between `localStorage` and Cloudflare D1/KV via background API.
+4. **Edge Case Sprinkles**: 30% chance of negatives, boundary-aware number generation
+   ```javascript
+   if (variants.includes('with_negatives') && Math.random() < 0.3) {
+       // Flip one operand negative
+   }
+   ```
 
 ---
 
-## 5. User Control Philosophy
+## 2. Question Generation Deep Dive
 
-**Tier selection is manual, not automatic.** The user chooses which complexity tier they want to practice (e.g., 1+1, 2+2, 3+3). The system responds by:
+### A. The Two-Phase System
 
-1. Adjusting difficulty **within that tier** based on performance
-2. Never auto-switching to a different tier
-3. Allowing users to enable hard variants (decimals, negatives) that reset/affect difficulty naturally
+Every question goes through:
 
-This gives users full control over their training focus while the arcade mechanics handle the micro-adjustments for optimal challenge.
+1. **Raw Generation** (`QuestionGenerator.generate`)
+   - Respects tier constraints (e.g., "2+2" means both operands are 2-digit)
+   - Applies variant modifiers (decimals, negatives, special modes)
+   - Guards against invalid outputs (NaN, division by zero)
+
+2. **Complexity Enrichment** (`Engine.generateQuestion`)
+   - Calculates cognitive load using `ComplexityCalculator`
+   - Assigns dynamic target time based on tier + complexity
+   - Attaches metadata for the arcade system
+
+### B. Category-Specific Quirks
+
+#### **Addition/Subtraction**
+- **Carry Detection**: Simulates the column-by-column algorithm
+  ```javascript
+  hasCarryAddition(47, 68):
+    7 + 8 = 15 >= 10 → TRUE (carry detected)
+  ```
+- **Borrow Detection**: Checks if any column requires borrowing
+  ```javascript
+  hasBorrowSubtraction(82, 47):
+    2 < 7 → TRUE (borrow needed)
+  ```
+
+#### **Multiplication**
+- **Tables Mode**: Overrides digit logic, forces 2-12 range
+  ```javascript
+  if (variants.includes('tables_2-12')) {
+      a = randomInt(2, 12); b = randomInt(2, 12);
+  }
+  ```
+- **Squares Mode**: Sets `a = b` for perfect squares
+
+#### **Division**
+- **Three Modes**:
+  1. **Exact**: `dividend = divisor × quotient` (always clean)
+  2. **Modulo**: `answer = dividend % divisor` (remainder only)
+  3. **Decimal**: `answer = (dividend / divisor).toFixed(2)`
+- **Smart Divisor Generation**: Never allows 0 or 1
+  ```javascript
+  if (divisor <= 1) divisor = randomInt(2, 9);
+  ```
+
+#### **Powers/Roots**
+- **Perfect Generation**: Works backward from root to radicand
+  ```javascript
+  // For √n, generate root first, then square it
+  const root = randomInt(minRoot, maxRoot);
+  radicand = root ** 2;
+  ```
+- **Guarantee**: Every root question has an integer answer (unless "estimate" variant active)
+
+#### **Percentages**
+- **Pool System**: Curated lists ensure "human" percentages
+- **Difficulty Scaling**: More unusual percentages (17%, 23%) at higher tiers
+- **Four Variants**: Forward (X% of Y), reverse (X is ?% of Y), change (±%), unknown original
+
+#### **Fractions**
+- **Fraction.js Integration**: Uses external library for precise arithmetic
+- **Generator**: Creates proper fractions `randomInt(1, denom-1) / randomInt(2, maxDenom)`
+- **Operation Chaining**: `f1.add(f2)` → automatic simplification
 
 ---
 
-## 6. Technical Stack Summary
+## 3. Complexity Calculator: The Mental Load Algorithm
 
--   **Frontend**: Alpine.js (Reactive UI), Tailwind CSS (Aesthetics).
--   **Logic**: Vanilla JS (ES6+).
--   **Calculations**: Internal `Fraction` class for precise fractional arithmetic.
--   **Performance**: `requestAnimationFrame` for the live timer to ensure zero UI lag.
--   **Storage**: `localStorage` for session persistence, Cloudflare D1/KV for cloud sync.
+### Layer 1: Digit Complexity
+Base cost = sum of digit counts, with operation-specific multipliers:
+- **Addition**: `d1 + d2`
+- **Multiplication**: `d1 × d2 × 0.8` (interaction is multiplicative)
+- **Division**: `d1 × 1.2 + d2 × 0.8` (dividend harder than divisor)
+
+### Layer 2: Operation Weight
+Inherent difficulty of the operation itself:
+```javascript
+addition: 0       // Baseline
+subtraction: 0.5  // Mental gymnastics
+multiplication: 2.5
+division: 3.0
+roots: 3.5        // Highest base cost
+percentages: 2.0
+fractions: 2.5
+```
+
+### Layer 3: Cognitive Load Bonuses
+- **Carry**: +1.5 points (mental overhead of managing tens)
+- **Borrow**: +1.8 points (more complex than carry)
+- **Multi-digit Both Sides**: +1.5 (e.g., 47 × 83 requires chunking)
+- **Boundary Numbers**: +0.5 (numbers near 100, 1000 etc. have special rules)
+
+### Layer 4: Variant Modifiers
+Each active variant adds complexity:
+```javascript
+'decimals': +1.5
+'allow_negative': +1.0
+'mixed' (fractions): +2.5
+'cubes': +1.5
+'reverse' (%): +2.0
+```
+
+**Example Calculation:**
+```
+Question: 847 + 576
+- Digit Complexity: 3 + 3 = 6
+- Operation: 0 (addition)
+- Cognitive: +1.5 (has carry: 7+6=13)
+- Variants: 0
+Total: 7.5 complexity points
+```
+
+---
+
+## 4. The Arcade System: Streak-Based Progression
+
+### Score Formula
+```
+Points = 10 × Complexity × SpeedBonus × Multiplier
+
+Where:
+  SpeedBonus = 2.0 (≥1.5× par) | 1.5 (≥1.0× par) | 1.0 (slower)
+  Multiplier = 1.0 + min(streak × 0.1, 2.0)  → caps at 3.0×
+```
+
+### Multiplier Progression
+| Streak | Multiplier | Effect |
+|--------|------------|--------|
+| 0-4    | 1.0-1.4×   | Building momentum |
+| 5-9    | 1.5-1.9×   | Flow state |
+| 10-14  | 2.0-2.4×   | Expert zone |
+| 15-19  | 2.5-2.9×   | Mastery |
+| 20+    | 3.0×       | **Peak performance** |
+
+### Error Handling
+- Streak → 0
+- Multiplier → 1.0×
+- Session score persists (no punishment)
+
+### Persistence
+- **Session Data**: `sessionScore`, `streak` (volatile)
+- **Lifetime Data**: `totalXP`, `categoryXP`, `bestStreak` (localStorage)
+- **Session History**: Last 20 sessions saved with score/date/category
+
+---
+
+## 5. Par Time System: The Flow Calibration
+
+### Dynamic Target Time
+```javascript
+targetTime = (baseTime × 1.0) + (complexity × 0.6)
+```
+
+Where:
+- **baseTime**: Tier-specific constant (1.0s for easy, 8.0s for hard division)
+- **Complexity**: Question-specific load from calculator
+- **Minimum**: Always ≥1.0s (prevents impossible expectations)
+
+**Example:**
+```
+Addition 2+2 tier, question "47 + 83":
+  baseTime = 2.0s
+  complexity = 6.5
+  targetTime = 2.0 + (6.5 × 0.6) = 5.9s
+```
+
+**Design Goal:** Par time represents the **80th percentile** of performance—achievable but requires focus.
+
+---
+
+## 6. Null Safety & Edge Cases
+
+### Guards Against Invalid Questions
+```javascript
+if (isNaN(a) || a === null || isNaN(answer)) {
+    console.error('Generated invalid question');
+    return null;
+}
+```
+
+### Division by Zero Protection
+```javascript
+if (divisor <= 1) divisor = randomInt(2, 9);
+```
+
+### Fraction Validity
+```javascript
+const genFrac = () => {
+    const den = randomInt(2, maxDenom);
+    return new Fraction(randomInt(1, den - 1), den); // Numerator always < denominator
+};
+```
+
+---
+
+## 7. How Randomness Creates Engagement
+
+### A. Controlled Chaos
+Users perceive randomness because:
+1. **No Visible Patterns**: Within a tier, questions use the full digit range
+2. **Variant Mixing**: Multiple active variants create combinatorial variety
+3. **Micro-Variations**: Carry/borrow presence varies even at same digit count
+
+### B. Hidden Structure
+The engine secretly:
+1. **Prevents Repetition**: Random pools (percentages) use arrays, not ranges
+2. **Guarantees Solvability**: Roots/division work backward from answers
+3. **Manages Difficulty**: Complexity stays within tier bounds
+
+### C. The Goldilocks Zone
+By combining:
+- **Tier selection** (user controls macro-difficulty)
+- **Variant toggles** (user adds spice)
+- **Random generation** (engine creates infinite variety within constraints)
+
+...users get questions that are:
+- **Never boring** (RNG ensures novelty)
+- **Never impossible** (complexity math ensures solvability)
+- **Always improving** (arcade streak rewards mastery)
+
+---
+
+## 8. Technical Implementation Notes
+
+### Class Architecture
+```
+Engine (main controller)
+  ├── ArcadeSystem (scoring & progression)
+  ├── QuestionGenerator (category-specific factories)
+  │     └── Uses Utils (RNG primitives)
+  └── ComplexityCalculator (mental load evaluator)
+```
+
+### Data Flow
+```
+User selects tier + variants
+  ↓
+Engine.generateQuestion()
+  ↓
+QuestionGenerator.{category}() → Raw question object
+  ↓
+ComplexityCalculator.calculate() → Adds complexity score
+  ↓
+targetTime calculation → Adds par time
+  ↓
+Return enriched question to app
+```
+
+### Answer Submission
+```
+User submits answer
+  ↓
+Engine.submitAnswer(question, time, isCorrect)
+  ↓
+isCorrect? → ArcadeSystem.onCorrect() : onError()
+  ↓
+Returns: { points, multiplier, streak, ... }
+```
+
+---
+
+## 9. Why It Feels "Just Right"
+
+The engine achieves the **Flow State** by:
+
+1. **Respecting User Intent**: Tier selection is manual, not automatic
+2. **Micro-Adjustments**: Complexity varies within tier based on RNG
+3. **Positive Reinforcement**: Streak multiplier → more points → dopamine
+4. **No Punishment**: Errors reset streak but don't subtract points
+5. **Invisible Rails**: Par time guides toward "fast enough" without feeling constrained
+
+**Result:** Users experience questions as "randomly challenging" when in reality, every number is constrained by tier → digits → variants → complexity bounds. The randomness is *curated*.
