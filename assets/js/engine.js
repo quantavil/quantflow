@@ -140,12 +140,13 @@ const OPERATIONS = {
         symbol: 'M',
         tiers: [
             { id: 'tier_1', label: 'Tier 1', count: 2, range: [10, 50], rating: 1000, baseTime: 5.0 },
-            { id: 'tier_2', label: 'Tier 2', count: 3, range: [10, 100], rating: 1200, baseTime: 8.0 },
-            { id: 'tier_3', label: 'Tier 3', count: 4, range: [20, 200], rating: 1400, baseTime: 12.0 },
-            { id: 'tier_4', label: 'Tier 4', count: 5, range: [20, 500], rating: 1600, baseTime: 15.0 }
+            { id: 'tier_2', label: 'Tier 2', count: 3, range: [10, 100], rating: 1300, baseTime: 8.0 },
+            { id: 'tier_3', label: 'Tier 3', count: 4, range: [20, 200], rating: 1600, baseTime: 12.0 }
         ],
         variants: [
-            { id: 'average', label: 'Average', default: true }
+            { id: 'average', label: 'Average', default: true },
+            { id: 'lcm', label: 'LCM', default: false },
+            { id: 'gcd', label: 'GCD', default: false }
         ]
     }
 };
@@ -234,8 +235,15 @@ const Utils = {
             }
             return parseFloat(fuzzed.toFixed(2));
         }
-    }
+    },
 
+    gcd: (a, b) => {
+        return b === 0 ? a : Utils.gcd(b, a % b);
+    },
+
+    lcm: (a, b) => {
+        return (a * b) / Utils.gcd(a, b);
+    }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -356,7 +364,9 @@ class ComplexityCalculator {
             'tables_21-30_37': 1.8,
             'squares_1-25': 0.5,
             'add': 0.5, 'subtract': 0.8, 'multiply': 1.0, 'divide': 1.2,
-            'average': 1.5
+            'average': 1.5,
+            'lcm': 2.0,
+            'gcd': 2.0
         };
 
         for (const variant of variants) {
@@ -895,6 +905,83 @@ const QuestionGenerator = {
                 answer: answer,
                 category: 'miscellaneous', tier, variants,
                 nums: nums
+            };
+        }
+
+        if (variants.includes('lcm')) {
+            // Strategy: Reverse generation to ensure mental arithmetic feasibility
+            // Tier 1: LCM < 40 (e.g. 4, 6 -> 12)
+            // Tier 2: LCM < 100
+            // Tier 3: LCM < 200
+
+            let maxLCM;
+            if (tierData.id === 'tier_1') maxLCM = 40;
+            else if (tierData.id === 'tier_2') maxLCM = 100;
+            else maxLCM = 200;
+
+            // Generate a target LCM
+            // Bias towards numbers with many factors for interesting questions
+            let targetLCM = Utils.randomInt(4, maxLCM);
+
+            // Generate factors of this target
+            // We want 2 or 3 numbers whose LCM is exactly targetLCM
+            let a, b, c;
+
+            // Try to find a valid pair/triplet
+            let attempts = 0;
+            while (attempts < 50) {
+                attempts++;
+                targetLCM = Utils.randomInt(4, maxLCM);
+
+                // Find all divisors
+                const divisors = [];
+                for (let i = 2; i <= targetLCM; i++) {
+                    if (targetLCM % i === 0) divisors.push(i);
+                }
+
+                if (divisors.length < 2) continue;
+
+                // Pick 2 distinct divisors
+                a = divisors[Utils.randomInt(0, divisors.length - 1)];
+                b = divisors[Utils.randomInt(0, divisors.length - 1)];
+
+                if (a === b || a % b === 0 || b % a === 0) continue; // Trivial cases like (2, 4) -> 4
+
+                if (Utils.lcm(a, b) === targetLCM) {
+                    return {
+                        display: `LCM(${a}, ${b})`,
+                        operand1: a, operand2: b, operator: 'LCM',
+                        answer: targetLCM,
+                        category: 'miscellaneous', tier, variants
+                    };
+                }
+            }
+        }
+
+        if (variants.includes('gcd')) {
+            // Strategy: Pick a GCD, then multiply by coprime factors
+            const maxGCD = tierData.id === 'tier_1' ? 8 : tierData.id === 'tier_2' ? 12 : 20;
+            const gcd = Utils.randomInt(2, maxGCD);
+
+            let m1, m2;
+            let attempts = 0;
+            while (attempts < 20) {
+                attempts++;
+                m1 = Utils.randomInt(2, 10);
+                m2 = Utils.randomInt(2, 10);
+
+                if (m1 === m2) continue;
+                if (Utils.gcd(m1, m2) === 1) break; // Ensure they don't add extra factors to GCD
+            }
+
+            const a = gcd * m1;
+            const b = gcd * m2;
+
+            return {
+                display: `GCD(${a}, ${b})`,
+                operand1: a, operand2: b, operator: 'GCD',
+                answer: gcd,
+                category: 'miscellaneous', tier, variants
             };
         }
 
