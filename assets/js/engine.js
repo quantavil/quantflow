@@ -122,6 +122,19 @@ const OPERATIONS = {
             { id: 'divide', label: 'Division', default: false },
             { id: 'mixed', label: 'Mixed Numbers', default: false }
         ]
+    },
+    approximation: {
+        symbol: '≈',
+        tiers: [
+            { id: 'tier_1', label: 'Tier 1', difficulty: 1, rating: 1000, baseTime: 4.0 },
+            { id: 'tier_2', label: 'Tier 2', difficulty: 2, rating: 1300, baseTime: 7.0 },
+            { id: 'tier_3', label: 'Tier 3', difficulty: 3, rating: 1600, baseTime: 12.0 }
+        ],
+        variants: [
+            { id: 'bodmas_rules', label: 'BODMAS', default: true },
+            { id: 'nearest_integer', label: 'Nearest Int', default: false },
+            { id: 'root_approx', label: 'Root Approx', default: false }
+        ]
     }
 };
 
@@ -174,6 +187,42 @@ const Utils = {
         }
         return false;
     },
+
+    fuzzValue(value, type = 'number') {
+        if (value === 0) return 0;
+
+        // Helper to get random sign
+        const sign = Math.random() < 0.5 ? 1 : -1;
+
+        if (type === 'percent') {
+            // E.g. 20% -> 19.99% or 20.05%
+            const diff = Utils.randomFloat(0.01, 0.15, 2) * sign;
+            return parseFloat((value + diff).toFixed(2));
+        } else if (type === 'root') {
+            // E.g. sqrt(144)=12 -> sqrt(140) to sqrt(150)
+            // We fuzz the SQUARED value so the root is approximate
+            // If clean is 144, display 142-146
+            const diff = Utils.randomInt(1, Math.max(3, Math.floor(value * 0.05))) * sign;
+            return value + diff;
+        } else {
+            // Standard Number: 100 -> 99.8, 100.3, 99.99
+            // Small numbers get smaller fuzz
+            const magic = Math.random();
+            let fuzzed;
+            if (magic < 0.33) {
+                // .99 type
+                fuzzed = value - (Utils.randomInt(1, 10) / Math.pow(10, Utils.randomInt(1, 2)));
+            } else if (magic < 0.66) {
+                // .01 type
+                fuzzed = value + (Utils.randomInt(1, 10) / Math.pow(10, Utils.randomInt(1, 2)));
+            } else {
+                // Random float nearby
+                const range = Math.max(0.1, value * 0.02);
+                fuzzed = value + (Math.random() * range * sign);
+            }
+            return parseFloat(fuzzed.toFixed(2));
+        }
+    }
 
 };
 
@@ -229,7 +278,8 @@ class ComplexityCalculator {
             powers: 2.0,
             roots: 3.5,
             percentages: 2.0,
-            fractions: 2.5
+            fractions: 2.5,
+            approximation: 2.0
         };
         return weights[question.category] || 1.0;
     }
@@ -824,6 +874,220 @@ const QuestionGenerator = {
             variants,
             operand1: f1.toFraction(),
             operand2: f2.toFraction()
+        };
+    },
+
+    approximation(tier, variants) {
+        const tierData = this._getTierData('approximation', tier);
+        if (!tierData) return null;
+
+        // Helper generators for "Clean" components
+        const genCleanNumber = (min = 10, max = 500) => Utils.randomInt(min, max);
+
+        const genCleanPercent = () => {
+            const pools = [10, 20, 25, 50, 75, 12.5, 33.33, 66.67];
+            return pools[Utils.randomInt(0, pools.length - 1)];
+        };
+
+        const genCleanSquare = () => {
+            const r = Utils.randomInt(5, 30);
+            return { root: r, square: r * r };
+        };
+
+        const genCleanCube = () => {
+            const r = Utils.randomInt(3, 15);
+            return { root: r, cube: r * r * r };
+        };
+
+        // Component Builders: Return { value: Number(clean answer), display: String(fuzzed expression) }
+        const buildComponent = (type) => {
+            if (type === 'percent') {
+                const p = genCleanPercent();
+                // Calculate Base such that P% of Base is integer
+                // P can be 33.33 -> 1/3. 
+                let frac;
+                if (p === 33.33) frac = new window.Fraction(1, 3);
+                else if (p === 66.67) frac = new window.Fraction(2, 3);
+                else if (p === 12.5) frac = new window.Fraction(1, 8);
+                else frac = new window.Fraction(p, 100);
+
+                const denom = Number(frac.d);
+                const mult = Utils.randomInt(1, 20);
+                const base = denom * mult * Utils.randomInt(1, 5); // Ensure decent size
+                const val = frac.mul(base).valueOf(); // Clean result
+
+                // Fuzz
+                const fuzzedP = Utils.fuzzValue(p, 'percent');
+                const fuzzedBase = Utils.fuzzValue(base);
+
+                return { value: Number(val), display: `${fuzzedP}% of ${fuzzedBase}` };
+
+            } else if (type === 'root_sq') {
+                const { root, square } = genCleanSquare();
+                // Fuzz the square
+                const fuzzedSq = Utils.fuzzValue(square, 'root');
+                return { value: root, display: `√${fuzzedSq}` };
+
+            } else if (type === 'root_cb') {
+                const { root, cube } = genCleanCube();
+                const fuzzedCb = Utils.fuzzValue(cube, 'root');
+                return { value: root, display: `∛${fuzzedCb}` };
+
+            } else if (type === 'pow') {
+                const base = Utils.randomInt(2, 15);
+                const exp = 2; // Keep simple for approx usually
+                const val = Math.pow(base, exp);
+                // Fuzz base OR don't fuzz small powers much?
+                // Usually approx questions are like 14.9^2
+                const fuzzedBase = Utils.fuzzValue(base);
+                return { value: val, display: `${fuzzedBase}²` };
+
+            } else if (type === 'number') {
+                const val = genCleanNumber();
+                const fuzzed = Utils.fuzzValue(val);
+                return { value: val, display: `${fuzzed}` };
+            }
+        };
+
+        // Structure definitions based on Tier
+        // Tier 1: A op B
+        // Tier 2: A op B op C (or A op B where components are complex)
+        // Tier 3: (A op B) / C or similar complex structures
+
+        let structure;
+        const d = tierData.difficulty;
+
+        // Force variants if selected
+        let useRoots = variants.includes('root_approx') || (Math.random() < 0.3 && d > 1);
+
+        // Define structures
+        // [ComponentType, Operator, ComponentType, ...]
+
+        const forceNumber = variants.includes('nearest_integer');
+
+        const ops = ['+', '−', '×', '÷'];
+        let types = ['number'];
+
+        if (!forceNumber) {
+            types.push('percent', 'pow');
+        }
+
+        // Roots logic
+        const allowRoots = variants.includes('root_approx') || (!forceNumber && Math.random() < 0.3);
+        if (allowRoots) {
+            types.push('root_sq');
+            if (d > 1) types.push('root_cb');
+        }
+
+        // If roots explicitly requested, prioritize them in simple tiers
+        const prioritizeRoots = variants.includes('root_approx');
+
+        let cleanAnswer;
+        let displayStr;
+
+        try {
+            if (d === 1) {
+                // Simple: Num op Num, or Simple Root, or Simple Percent
+                if (allowRoots) {
+                    const c = buildComponent('root_sq');
+                    cleanAnswer = c.value;
+                    displayStr = c.display;
+                } else if (Math.random() < 0.4) {
+                    const c = buildComponent('percent');
+                    cleanAnswer = c.value;
+                    displayStr = c.display;
+                } else {
+                    // Multiplication or Division of decimals
+                    const op = Math.random() < 0.5 ? '×' : (Math.random() < 0.5 ? '+' : '−');
+                    const c1 = buildComponent('number');
+                    const c2 = buildComponent('number');
+
+                    // Keep clean arithmetic simple
+                    let v1 = c1.value, v2 = c2.value;
+
+                    if (op === '×') {
+                        v1 = Utils.randomInt(5, 25);
+                        v2 = Utils.randomInt(5, 20); // Keep reasonable
+                        cleanAnswer = v1 * v2;
+                        displayStr = `${Utils.fuzzValue(v1)} × ${Utils.fuzzValue(v2)}`;
+                    } else if (op === '+') {
+                        cleanAnswer = v1 + v2;
+                        displayStr = `${c1.display} + ${c2.display}`;
+                    } else {
+                        if (v1 < v2) [v1, v2] = [v2, v1];
+                        cleanAnswer = v1 - v2;
+                        displayStr = `${Utils.fuzzValue(v1)} − ${Utils.fuzzValue(v2)}`;
+                    }
+                }
+            } else if (d === 2) {
+                // Form: C1 op C2
+                // One component should be complex (Percent/Root/Pow)
+                const op = ops[Utils.randomInt(0, 1)]; // + or - mostly for approximations between terms
+
+                const type1 = types.length > 1 ? types[Utils.randomInt(1, types.length - 1)] : types[0];
+                const type2 = 'number';
+
+                const c1 = buildComponent(type1);
+                const c2 = buildComponent(type2);
+
+                if (op === '+') {
+                    cleanAnswer = c1.value + c2.value;
+                    displayStr = `${c1.display} + ${c2.display}`;
+                } else {
+                    // Subtraction
+                    // Ensure positive result ideally?
+                    let v1 = c1.value, v2 = c2.value;
+                    let d1 = c1.display, d2 = c2.display;
+                    if (v1 < v2) { [v1, v2] = [v2, v1];[d1, d2] = [d2, d1]; }
+                    cleanAnswer = v1 - v2;
+                    displayStr = `${d1} − ${d2}`;
+                }
+            } else {
+                // Tier 3: Complex BODMAS
+                // Form: (C1 + C2) / C3 or C1 + C2 - C3
+                const structureType = Math.random() < 0.5 ? 'linear' : 'divisive';
+
+                if (structureType === 'linear') {
+                    const type1 = types.length > 1 ? types[Utils.randomInt(1, types.length - 1)] : types[0];
+                    const c1 = buildComponent(type1);
+                    const c2 = buildComponent('number');
+                    const c3ValType = types[Utils.randomInt(0, types.length - 1)];
+                    const c3 = buildComponent(c3ValType);
+
+                    // C1 + C2 - C3
+                    cleanAnswer = c1.value + c2.value - c3.value;
+                    displayStr = `${c1.display} + ${c2.display} − ${c3.display}`;
+                } else {
+                    // (C1 + C2) / C3
+                    // Make sure (C1+C2) is divisible by C3
+                    const c3 = Utils.randomInt(2, 10);
+                    const targetNum = c3 * Utils.randomInt(5, 50);
+
+                    // Split targetNum into C1 + C2
+                    const v1 = Math.floor(targetNum * 0.6);
+                    const v2 = targetNum - v1;
+
+                    const c1_disp = Utils.fuzzValue(v1);
+                    const c2_disp = Utils.fuzzValue(v2);
+                    const c3_disp = Utils.fuzzValue(c3);
+
+                    cleanAnswer = targetNum / c3;
+                    displayStr = `(${c1_disp} + ${c2_disp}) ÷ ${c3_disp}`;
+                }
+            }
+        } catch (e) {
+            console.error('Approximation Gen Error', e);
+            return null;
+        }
+
+        // Round final answer to nearest integer as that's the goal of approximation
+        cleanAnswer = Math.round(cleanAnswer);
+
+        return {
+            display: `${displayStr} = ?`,
+            operand1: displayStr, operand2: null, operator: '≈',
+            answer: cleanAnswer,
+            category: 'approximation', tier, variants
         };
     }
 };

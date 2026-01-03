@@ -180,7 +180,7 @@ document.addEventListener('alpine:init', () => {
             if (!this.currentQuestion) return '<span class="text-text-muted">Ready</span>';
 
             const q = this.currentQuestion;
-            if (['fractions', 'percentages'].includes(q.category)) {
+            if (['fractions', 'percentages', 'approximation'].includes(q.category)) {
                 return `<span class="text-text-primary">${q.display}</span>`;
             }
             if (q.category === 'powers') {
