@@ -135,6 +135,18 @@ const OPERATIONS = {
             { id: 'nearest_integer', label: 'Nearest Int', default: false },
             { id: 'root_approx', label: 'Root Approx', default: false }
         ]
+    },
+    miscellaneous: {
+        symbol: 'M',
+        tiers: [
+            { id: 'tier_1', label: 'Tier 1', count: 2, range: [10, 50], rating: 1000, baseTime: 5.0 },
+            { id: 'tier_2', label: 'Tier 2', count: 3, range: [10, 100], rating: 1200, baseTime: 8.0 },
+            { id: 'tier_3', label: 'Tier 3', count: 4, range: [20, 200], rating: 1400, baseTime: 12.0 },
+            { id: 'tier_4', label: 'Tier 4', count: 5, range: [20, 500], rating: 1600, baseTime: 15.0 }
+        ],
+        variants: [
+            { id: 'average', label: 'Average', default: true }
+        ]
     }
 };
 
@@ -279,7 +291,8 @@ class ComplexityCalculator {
             roots: 3.5,
             percentages: 2.0,
             fractions: 2.5,
-            approximation: 2.0
+            approximation: 2.0,
+            miscellaneous: 2.0
         };
         return weights[question.category] || 1.0;
     }
@@ -342,7 +355,8 @@ class ComplexityCalculator {
             'tables_13-20': 1.0,
             'tables_21-30_37': 1.8,
             'squares_1-25': 0.5,
-            'add': 0.5, 'subtract': 0.8, 'multiply': 1.0, 'divide': 1.2
+            'add': 0.5, 'subtract': 0.8, 'multiply': 1.0, 'divide': 1.2,
+            'average': 1.5
         };
 
         for (const variant of variants) {
@@ -809,7 +823,7 @@ const QuestionGenerator = {
 
             const resultFrac = multiplier.mul(new window.Fraction(original));
 
-            display = `X ${isIncrease ? '+' : '−'} ${percent}% = ${resultFrac.valueOf()}`;
+            display = `? ${isIncrease ? '+' : '−'} ${percent}% = ${resultFrac.valueOf()}`;
             answer = original;
         } else {
             // Standard
@@ -824,8 +838,67 @@ const QuestionGenerator = {
         return {
             display, operator: '%', answer, category: 'percentages', tier, variants,
             operand1: base, operand2: percent,
-            isCleanDivision, denominator // Store for complexity calc
+            isCleanDivision, denominator
         };
+    },
+
+    miscellaneous(tier, variants) {
+        const tierData = this._getTierData('miscellaneous', tier);
+        if (!tierData) return null;
+
+        if (variants.includes('average')) {
+            const count = tierData.count;
+            const min = tierData.range[0];
+            const max = tierData.range[1];
+
+            // Generate 'count' random numbers
+            let nums = [];
+            let sum = 0;
+
+            // To ensure integer average, the sum must be divisible by 'count'.
+            // Strategy: Generate count-1 numbers, calculated required last number.
+
+            for (let i = 0; i < count - 1; i++) {
+                const n = Utils.randomInt(min, max);
+                nums.push(n);
+                sum += n;
+            }
+
+            // Calculate remainder to see what we need for the last number
+            const remainder = sum % count;
+            const needed = (count - remainder) % count;
+
+            // Generate a last number that satisfies (n % count === needed)
+            // n = k * count + needed
+            let lastNum = Utils.randomInt(min, max);
+            // Adjust lastNum to match remainder requirement
+            let adjustment = lastNum % count - needed;
+            lastNum -= adjustment;
+
+            // Ensure lastNum is within reasonable bounds (it might drift slightly out of min/max, but that's fine for variety)
+            if (lastNum < min) lastNum += count;
+
+            nums.push(lastNum);
+
+            // Recalculate sum and average using Fraction.js for safety, though integer logic guarantees it
+            let fSum = new window.Fraction(0);
+            nums.forEach(n => fSum = fSum.add(n));
+
+            const fCount = new window.Fraction(count);
+            const fAvg = fSum.div(fCount);
+
+            const answer = fAvg.valueOf();
+
+            return {
+                display: `Avg(${nums.join(', ')})`,
+                operand1: null, operand2: null, operator: 'Avg',
+                answer: answer,
+                category: 'miscellaneous', tier, variants,
+                nums: nums
+            };
+        }
+
+        return null;
     },
 
     fractions(tier, variants) {
