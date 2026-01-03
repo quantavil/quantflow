@@ -464,7 +464,20 @@ const QuestionGenerator = {
     },
 
     _base(category, tierData, a, b, op, symbol, extras = {}) {
-        const answer = op(a, b);
+        // Use Fraction.js for precise arithmetic
+        const fracA = new window.Fraction(a);
+        const fracB = new window.Fraction(b);
+        let answerFrac;
+
+        // Apply operation using Fraction.js
+        switch (symbol) {
+            case '+': answerFrac = fracA.add(fracB); break;
+            case '−': answerFrac = fracA.sub(fracB); break;
+            case '×': answerFrac = fracA.mul(fracB); break;
+            default: answerFrac = new window.Fraction(op(a, b));
+        }
+
+        const answer = answerFrac.valueOf();
 
         // Guard against NaN/Null values
         if (
@@ -479,7 +492,7 @@ const QuestionGenerator = {
         return {
             display: `${a < 0 ? `(${a})` : a} ${symbol} ${b < 0 ? `(${b})` : b}`,
             operand1: a, operand2: b, operator: symbol,
-            answer: parseFloat(answer.toFixed(2)),
+            answer: Number.isInteger(answer) ? answer : Math.round(answer * 100) / 100,
             category, tier: tierData.id, ...extras
         };
     },
@@ -596,8 +609,10 @@ const QuestionGenerator = {
                 answer, remainder, category: 'division', tier, variants, selectedMode: mode
             };
         } else {
+            // decimal_2dp mode: Use Fraction.js for exact division
             dividend = Utils.generateNumberWithDigits(tierData.digits[0]);
-            answer = parseFloat((dividend / divisor).toFixed(2));
+            const divFrac = new window.Fraction(dividend, divisor);
+            answer = Math.round(divFrac.valueOf() * 100) / 100;
         }
 
         return {
