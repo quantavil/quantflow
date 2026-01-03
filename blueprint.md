@@ -79,12 +79,10 @@ Every question goes through:
   ```
 
 #### **Multiplication**
-- **Tables Mode**: Overrides digit logic, forces 2-12 range
-  ```javascript
-  if (variants.includes('tables_2-12')) {
-      a = randomInt(2, 12); b = randomInt(2, 12);
-  }
-  ```
+- **Tables Mode**: Overrides digit logic, forces specific ranges:
+  - **Tables 2-12**: Core foundation
+  - **Tables 13-20**: Banking exam baseline
+  - **Tables 21-30 + 37**: Advanced competitive level including targeted prime factor practice
 - **Squares Mode**: Sets `a = b` for perfect squares
 
 #### **Division**
@@ -96,27 +94,35 @@ Every question goes through:
   ```javascript
   if (divisor <= 1) divisor = randomInt(2, 9);
   ```
+-   **Three Modes**:
+    1.  **Exact**: `dividend = divisor × quotient` (always clean)
+    2.  **Modulo**: `answer = dividend % divisor` (remainder only)
+    3.  **Decimal**: `answer = (dividend / divisor).toFixed(2)`
+-   **Smart Divisor Generation**: Never allows 0 or 1
+    ```javascript
+    if (divisor <= 1) divisor = randomInt(2, 9);
+    ```
 
 #### **Powers/Roots**
-- **Perfect Generation**: Works backward from root to radicand
-  ```javascript
-  // For √n, generate root first, then square it
-  const root = randomInt(minRoot, maxRoot);
-  radicand = root ** 2;
-  ```
-- **Guarantee**: Every root question has an integer answer (unless "estimate" variant active)
+-   **Perfect Generation**: Works backward from root to radicand
+    ```javascript
+    // For √n, generate root first, then square it
+    const root = randomInt(minRoot, maxRoot);
+    radicand = root ** 2;
+    ```
+-   **Guarantee**: Every root question has an integer answer (unless "estimate" variant active)
 
 #### **Percentages**
-- **Competitive Banking Exam Pools**: Exhaustive list of fractional conversions (1/2 through 1/20).
-- **Above 100% Support**: Includes values like 112.5%, 133.33%, 166.67%, and up to 500%.
-- **Normalization Logic**: Percentages > 100% are normalized (e.g., 250% → 50%) to correctly identify the base fractional denominator.
-- **Divisibility Detection**: Uses a robust check for integer results (`(percent/100 * base)` is an integer) to identify "Clean Divisions".
-- **Four Variants**: Forward (X% of Y), reverse (X is ?% of Y), change (±%), unknown original.
+-   **Competitive Banking Exam Pools**: Exhaustive list of fractional conversions (1/2 through 1/20).
+-   **Above 100% Support**: Includes values like 112.5%, 133.33%, 166.67%, and up to 500%.
+-   **Normalization Logic**: Percentages > 100% are normalized (e.g., 250% → 50%) to correctly identify the base fractional denominator.
+-   **Divisibility Detection**: Uses a robust check for integer results (`(percent/100 * base)` is an integer) to identify "Clean Divisions".
+-   **Four Variants**: Forward (X% of Y), reverse (X is ?% of Y), change (±%), unknown original.
 
 #### **Fractions**
-- **Fraction.js Integration**: Uses external library for precise arithmetic
-- **Generator**: Creates proper fractions `randomInt(1, denom-1) / randomInt(2, maxDenom)`
-- **Operation Chaining**: `f1.add(f2)` → automatic simplification
+-   **Fraction.js Integration**: Uses external library for precise arithmetic
+-   **Generator**: Creates proper fractions `randomInt(1, denom-1) / randomInt(2, maxDenom)`
+-   **Operation Chaining**: `f1.add(f2)` → automatic simplification
 
 ---
 
@@ -124,9 +130,9 @@ Every question goes through:
 
 ### Layer 1: Digit Complexity
 Base cost = sum of digit counts, with operation-specific multipliers:
-- **Addition**: `d1 + d2`
-- **Multiplication**: `d1 × d2 × 0.8` (interaction is multiplicative)
-- **Division**: `d1 × 1.2 + d2 × 0.8` (dividend harder than divisor)
+-   **Addition**: `d1 + d2`
+-   **Multiplication**: `d1 × d2 × 0.8` (interaction is multiplicative)
+-   **Division**: `d1 × 1.2 + d2 × 0.8` (dividend harder than divisor)
 
 ### Layer 2: Operation Weight
 Inherent difficulty of the operation itself:
@@ -141,9 +147,6 @@ fractions: 2.5
 ```
 
 ### Layer 3: Cognitive Load Bonuses
-- **Carry**: +1.5 points (mental overhead of managing tens)
-- **Borrow**: +1.8 points (more complex than carry)
-- **Multi-digit Both Sides**: +1.5 (e.g., 47 × 83 requires chunking)
 - **Boundary Numbers**: +0.5 (numbers near 100, 1000 etc. have special rules)
 - **Percentage Clean Division**: 
   - **Non-clean**: +2.0 (e.g., 12.5% of 55 = 6.875)

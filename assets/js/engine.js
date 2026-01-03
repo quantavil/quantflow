@@ -45,6 +45,8 @@ const OPERATIONS = {
         variants: [
             { id: 'standard', label: 'Standard', default: true },
             { id: 'tables_2-12', label: 'Tables 2-12', default: false },
+            { id: 'tables_13-20', label: 'Tables 13-20', default: false },
+            { id: 'tables_21-30_37', label: 'Tables 21-30 + 37', default: false },
             { id: 'squares_1-25', label: 'Squares 1-25', default: false }
         ]
     },
@@ -287,6 +289,8 @@ class ComplexityCalculator {
             'increase_decrease': 1.5,
             'reverse': 2.0,
             'tables_2-12': 0.5,
+            'tables_13-20': 1.0,
+            'tables_21-30_37': 1.8,
             'squares_1-25': 0.5,
             'add': 0.5, 'subtract': 0.8, 'multiply': 1.0, 'divide': 1.2
         };
@@ -538,6 +542,13 @@ const QuestionGenerator = {
         let a, b;
         if (variants.includes('tables_2-12') && ['1x1', '1x2'].includes(tier)) {
             a = Utils.randomInt(2, 12);
+            b = Utils.randomInt(2, 12);
+        } else if (variants.includes('tables_13-20')) {
+            a = Utils.randomInt(13, 20);
+            b = Utils.randomInt(2, 12);
+        } else if (variants.includes('tables_21-30_37')) {
+            const tablePool = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 37];
+            a = tablePool[Utils.randomInt(0, tablePool.length - 1)];
             b = Utils.randomInt(2, 12);
         } else if (variants.includes('squares_1-25')) {
             a = b = Utils.randomInt(1, 25);
