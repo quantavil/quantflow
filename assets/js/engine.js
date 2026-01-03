@@ -663,56 +663,98 @@ const QuestionGenerator = {
         const d = tierData.difficulty;
         // Exam Level Pools
         const pools = {
-            // Simple: Common fractions (1/2, 1/3, 1/4, 1/5, 1/8, 1/10) and basic integers
             1: [10, 12.5, 20, 25, 33.33, 50, 66.67, 75, 100, 125, 150, 200],
-
-            // Medium: Intermediate fractions (1/6, 1/12, 1/15, 1/16, 3/8, 5/8) + basic > 100
             2: [5, 6.25, 6.67, 8.33, 10, 12.5, 15, 16.67, 20, 25, 30, 33.33, 37.5, 40, 45, 50, 60, 62.5, 66.67, 75, 80, 112.5, 125, 133.33, 150, 175, 200, 250],
-
-            // Complex: Advanced fractions (1/7, 1/9, 1/11, 1/13, 1/14, 1/17, 1/18, 1/19) + exhaustive > 100
             3: [4, 5, 5.26, 5.55, 5.88, 6.25, 6.67, 7.14, 7.69, 8.33, 9.09, 10, 11.11, 12.5, 14.28, 15, 16.67, 18.75, 20, 22.22, 25, 27.5, 30, 33.33, 37.5, 40, 42.85, 44.44, 45, 50, 55, 55.55, 60, 62.5, 66.67, 70, 75, 77.77, 80, 83.33, 87.5, 88.88, 90, 95, 100, 112.5, 125, 133.33, 137.5, 150, 162.5, 166.67, 175, 187.5, 200, 225, 250, 300, 400, 500]
         };
         const pool = pools[d] || pools[1];
         const percent = pool[Utils.randomInt(0, pool.length - 1)];
 
-        // Map percentages to denominators for difficulty scaling
-        const fractionMap = {
-            12.5: 8, 33.33: 3, 66.67: 3, 16.67: 6, 83.33: 6,
-            6.25: 16, 37.5: 8, 62.5: 8, 87.5: 8,
-            8.33: 12, 11.11: 9, 22.22: 9, 44.44: 9, 55.55: 9, 77.77: 9, 88.88: 9,
-            14.28: 7, 28.57: 7, 42.85: 7, 57.14: 7, 71.42: 7,
-            9.09: 11, 18.18: 11, 27.27: 11, 45.45: 11,
-            5.88: 17, 5.26: 19, 5.55: 18, 5: 20, 10: 10, 20: 5, 25: 4, 40: 5, 50: 2, 60: 5, 75: 4, 80: 5
+        // Explicit Fraction Mapping for clean exam math
+        // Maps % value -> [numerator, denominator]
+        const explicitFractions = {
+            12.5: [1, 8], 33.33: [1, 3], 66.67: [2, 3], 16.67: [1, 6], 83.33: [5, 6],
+            6.25: [1, 16], 37.5: [3, 8], 62.5: [5, 8], 87.5: [7, 8],
+            8.33: [1, 12], 11.11: [1, 9], 22.22: [2, 9], 44.44: [4, 9], 55.55: [5, 9], 77.77: [7, 9], 88.88: [8, 9],
+            14.28: [1, 7], 28.57: [2, 7], 42.85: [3, 7], 57.14: [4, 7], 71.42: [5, 7],
+            9.09: [1, 11], 18.18: [2, 11], 27.27: [3, 11], 45.45: [5, 11],
+            5.88: [1, 17], 5.26: [1, 19], 5.55: [1, 18], 5: [1, 20], 10: [1, 10], 20: [1, 5], 25: [1, 4], 40: [2, 5], 50: [1, 2], 60: [3, 5], 75: [3, 4], 80: [4, 5],
+            6.67: [1, 15], 15: [3, 20], 30: [3, 10], 45: [9, 20]
         };
 
-        // Normalize percentage (e.g. 125% -> 25%, 300% -> 100%) to find the base fraction
-        const lookupPercent = percent > 100 ? (percent % 100 === 0 ? 100 : percent % 100) : percent;
-        const denominator = fractionMap[lookupPercent] || 100;
-        const base = Utils.randomInt(10, 200) * d;
+        // Construct Fraction Object
+        // Handle > 100% by splitting integer part
+        const basePercent = percent > 100 ? (percent % 100 === 0 ? 100 : parseFloat((percent % 100).toFixed(2))) : percent;
+        let frac;
+
+        if (basePercent === 100 || basePercent === 0) {
+            frac = new window.Fraction(1);
+        } else if (explicitFractions[basePercent]) {
+            frac = new window.Fraction(...explicitFractions[basePercent]);
+        } else {
+            // Fallback for unmapped percentages - use single argument for float safety
+            frac = new window.Fraction(basePercent / 100);
+        }
+
+        // Add back the hundreds component (e.g. 133.33% -> 1 + 1/3)
+        if (percent > 100) {
+            const hundreds = Math.floor(percent / 100);
+            frac = frac.add(hundreds);
+        }
+
+        // Safe conversion of denominator to Number for math with regular integers
+        const denominator = Number(frac.d);
+
+        // Smart Base Generation: Ensure base is a multiple of the denominator
+        const minVal = 10 * d;
+        const maxVal = 200 * d;
+        const minK = Math.ceil(minVal / denominator);
+        const maxK = Math.floor(maxVal / denominator);
+        const k = Utils.randomInt(minK, Math.max(minK, maxK));
+        const base = k * denominator;
 
         let display, answer;
 
         if (variants.includes('what_percent')) {
-            const part = (percent / 100) * base;
-            display = `${parseFloat(part.toFixed(2))} is ?% of ${base}`;
+            // Part = Fraction * Base
+            const partFrac = frac.mul(new window.Fraction(base));
+            // valueOf() converts to Number (handles potential BigInt internals)
+            const partVal = partFrac.valueOf();
+
+            display = `${partVal} is ?% of ${base}`;
             answer = percent;
         } else if (variants.includes('increase_decrease')) {
             const isIncrease = Math.random() < 0.5;
-            const change = (percent / 100) * base;
+            const changeFrac = frac.mul(new window.Fraction(base));
+            const changeVal = changeFrac.valueOf();
+
             display = `${base} ${isIncrease ? '+' : '−'} ${percent}%`;
-            answer = parseFloat((isIncrease ? base + change : base - change).toFixed(2));
+            answer = isIncrease ? (base + changeVal) : (base - changeVal);
         } else if (variants.includes('reverse')) {
-            const original = Utils.randomInt(50, 200);
-            display = `X + ${percent}% = ${parseFloat((original * (1 + percent / 100)).toFixed(2))}`;
+            // X * (1 ± p) = Result. Find X.
+            const original = base;
+            const isIncrease = percent >= 100 ? true : Math.random() < 0.5;
+
+            let multiplier;
+            if (isIncrease) {
+                multiplier = new window.Fraction(1).add(frac);
+            } else {
+                multiplier = new window.Fraction(1).sub(frac);
+            }
+
+            const resultFrac = multiplier.mul(new window.Fraction(original));
+
+            display = `X ${isIncrease ? '+' : '−'} ${percent}% = ${resultFrac.valueOf()}`;
             answer = original;
         } else {
+            // Standard
             display = `${percent}% of ${base}`;
-            answer = parseFloat(((percent / 100) * base).toFixed(2));
+            const ansFrac = frac.mul(new window.Fraction(base));
+            answer = ansFrac.valueOf();
         }
 
-        // Clean division is when the result is an integer
-        const resultValue = (percent / 100) * base;
-        const isCleanDivision = Number.isInteger(parseFloat(resultValue.toFixed(4)));
+        // Clean division check for complexity scaling
+        const isCleanDivision = Number.isInteger(parseFloat(answer));
 
         return {
             display, operator: '%', answer, category: 'percentages', tier, variants,
