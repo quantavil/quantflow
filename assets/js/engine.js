@@ -255,6 +255,17 @@ class ComplexityCalculator {
             points += 0.5;
         }
 
+        // Percentage Specific: Divisional Complexity
+        if (question.category === 'percentages') {
+            if (question.isCleanDivision === false) {
+                // Messy decimal result (e.g. 1/8 of 50) is much harder
+                points += 2.0;
+            } else if (question.denominator && question.denominator > 10) {
+                // High denominator (e.g. 1/17) is hard even if clean
+                points += 0.5;
+            }
+        }
+
         return points;
     }
 
@@ -653,12 +664,26 @@ const QuestionGenerator = {
         const pool = pools[d] || pools[1];
         const percent = pool[Utils.randomInt(0, pool.length - 1)];
 
-        let display, answer;
+        // Map percentages to denominators for difficulty scaling
+        const fractionMap = {
+            12.5: 8, 33.33: 3, 66.67: 3, 16.67: 6, 83.33: 6,
+            6.25: 16, 37.5: 8, 62.5: 8, 87.5: 8,
+            8.33: 12, 11.11: 9, 22.22: 9, 44.44: 9, 55.55: 9, 77.77: 9, 88.88: 9,
+            14.28: 7, 28.57: 7, 42.85: 7, 57.14: 7, 71.42: 7,
+            9.09: 11, 18.18: 11, 27.27: 11, 45.45: 11,
+            5.88: 17, 5.26: 19, 5.55: 18, 5: 20, 10: 10, 20: 5, 25: 4, 40: 5, 50: 2, 60: 5, 75: 4, 80: 5
+        };
+
+        // Normalize percentage (e.g. 125% -> 25%, 300% -> 100%) to find the base fraction
+        const lookupPercent = percent > 100 ? (percent % 100 === 0 ? 100 : percent % 100) : percent;
+        const denominator = fractionMap[lookupPercent] || 100;
         const base = Utils.randomInt(10, 200) * d;
+
+        let display, answer;
 
         if (variants.includes('what_percent')) {
             const part = (percent / 100) * base;
-            display = `${part} is ?% of ${base}`;
+            display = `${parseFloat(part.toFixed(2))} is ?% of ${base}`;
             answer = percent;
         } else if (variants.includes('increase_decrease')) {
             const isIncrease = Math.random() < 0.5;
@@ -674,9 +699,14 @@ const QuestionGenerator = {
             answer = parseFloat(((percent / 100) * base).toFixed(2));
         }
 
+        // Clean division is when the result is an integer
+        const resultValue = (percent / 100) * base;
+        const isCleanDivision = Number.isInteger(parseFloat(resultValue.toFixed(4)));
+
         return {
             display, operator: '%', answer, category: 'percentages', tier, variants,
-            operand1: base, operand2: percent
+            operand1: base, operand2: percent,
+            isCleanDivision, denominator // Store for complexity calc
         };
     },
 

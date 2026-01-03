@@ -107,9 +107,11 @@ Every question goes through:
 - **Guarantee**: Every root question has an integer answer (unless "estimate" variant active)
 
 #### **Percentages**
-- **Pool System**: Curated lists ensure "human" percentages
-- **Difficulty Scaling**: More unusual percentages (17%, 23%) at higher tiers
-- **Four Variants**: Forward (X% of Y), reverse (X is ?% of Y), change (±%), unknown original
+- **Competitive Banking Exam Pools**: Exhaustive list of fractional conversions (1/2 through 1/20).
+- **Above 100% Support**: Includes values like 112.5%, 133.33%, 166.67%, and up to 500%.
+- **Normalization Logic**: Percentages > 100% are normalized (e.g., 250% → 50%) to correctly identify the base fractional denominator.
+- **Divisibility Detection**: Uses a robust check for integer results (`(percent/100 * base)` is an integer) to identify "Clean Divisions".
+- **Four Variants**: Forward (X% of Y), reverse (X is ?% of Y), change (±%), unknown original.
 
 #### **Fractions**
 - **Fraction.js Integration**: Uses external library for precise arithmetic
@@ -143,6 +145,9 @@ fractions: 2.5
 - **Borrow**: +1.8 points (more complex than carry)
 - **Multi-digit Both Sides**: +1.5 (e.g., 47 × 83 requires chunking)
 - **Boundary Numbers**: +0.5 (numbers near 100, 1000 etc. have special rules)
+- **Percentage Clean Division**: 
+  - **Non-clean**: +2.0 (e.g., 12.5% of 55 = 6.875)
+  - **High Denominator**: +0.5 (e.g., 1/17 even if clean)
 
 ### Layer 4: Variant Modifiers
 Each active variant adds complexity:
