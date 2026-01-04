@@ -198,7 +198,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         get liveTimerDisplay() {
-            if (!this.session.isActive && this.liveTimer === 0) return 'READY';
+            if (!this.session.isActive && this.liveTimer === 0) return '--';
             return (this.liveTimer / 1000).toFixed(2);
         },
 
