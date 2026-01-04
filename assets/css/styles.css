@@ -214,6 +214,30 @@ body {
     border: 1px solid var(--charcoal-border);
 }
 
+/* Animated stat values */
+.stat-value {
+    font-variant-numeric: tabular-nums;
+    transition: transform 0.15s ease-out, color 0.2s ease;
+}
+
+.stat-value.pulse {
+    animation: stat-pulse 0.3s ease-out;
+}
+
+@keyframes stat-pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
 /* ANIMATIONS */
 @keyframes flash {
     0% {

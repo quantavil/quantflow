@@ -141,6 +141,15 @@ document.addEventListener('alpine:init', () => {
         // Toast Notification System
         toasts: [],
 
+        // Animated Stats State (for count-up animations)
+        animatedStats: {
+            accuracy: 0,
+            bestStreak: 0,
+            avgTime: 0,
+            total: 0
+        },
+        animationFrames: {},
+
         // Performance Ring Logic
         // Computed properties will handle this
 
@@ -198,9 +207,9 @@ document.addEventListener('alpine:init', () => {
             const errorDeg = Math.round((stats.errorCount / total) * 360);
 
             return {
-                fast: `conic-gradient(var(--color-terminal-green) ${fastDeg}deg, transparent 0)`,
-                slow: `conic-gradient(var(--color-signal-orange) ${slowDeg}deg, transparent 0)`,
-                error: `conic-gradient(var(--color-signal-red) ${errorDeg}deg, transparent 0)`,
+                fast: `conic-gradient(#00D26A ${fastDeg}deg, transparent 0)`,
+                slow: `conic-gradient(#FF9F1C ${slowDeg}deg, transparent 0)`,
+                error: `conic-gradient(#FF4B4B ${errorDeg}deg, transparent 0)`,
                 total: total,
                 fastPct: Math.round((stats.fastCount / total) * 100),
                 slowPct: Math.round((stats.slowCount / total) * 100),
@@ -265,16 +274,26 @@ document.addEventListener('alpine:init', () => {
 
         get categoryStatsDisplay() {
             const catStats = this.getCurrentStats();
-            const avgTime = catStats.latencies.length ?
-                this.formatTime(catStats.latencies.reduce((a, b) => a + b, 0) / catStats.latencies.length) : '--';
+            const avgTimeMs = catStats.latencies.length ?
+                catStats.latencies.reduce((a, b) => a + b, 0) / catStats.latencies.length : 0;
+            const avgTime = catStats.latencies.length ? this.formatTime(avgTimeMs) : '--';
 
-            const acc = catStats.totalAnswered ? (catStats.totalCorrect / catStats.totalAnswered * 100).toFixed(1) + '%' : '--';
+            const accValue = catStats.totalAnswered ? (catStats.totalCorrect / catStats.totalAnswered * 100) : 0;
+            const acc = catStats.totalAnswered ? accValue.toFixed(1) + '%' : '--';
+
+            // Calculate trends vs session start
+            const accTrend = this.sessionStartStats ?
+                this.getTrend(accValue, this.sessionStartStats.acc * 100) : null;
+            const avgTimeTrend = this.sessionStartStats && avgTimeMs > 0 ?
+                this.getTrend(avgTimeMs, this.sessionStartStats.avgTime, true) : null;
+            const streakTrend = this.sessionStartStats && catStats.bestStreak > this.sessionStartStats.bestStreak ?
+                { direction: '↑', delta: catStats.bestStreak - this.sessionStartStats.bestStreak, colorClass: 'text-session-gold', formatted: 'NEW!' } : null;
 
             return [
-                { label: 'Accuracy', value: acc, colorClass: this.getAccuracyClass(parseFloat(acc)) },
-                { label: 'Best Streak', value: catStats.bestStreak, colorClass: 'text-terminal-green' },
-                { label: 'Avg Time', value: avgTime, colorClass: 'text-text-primary' },
-                { label: 'Total', value: catStats.totalAnswered.toLocaleString(), colorClass: 'text-text-muted' }
+                { label: 'Accuracy', value: acc, colorClass: this.getAccuracyClass(parseFloat(acc)), trend: accTrend },
+                { label: 'Best Streak', value: catStats.bestStreak, colorClass: 'text-terminal-green', trend: streakTrend },
+                { label: 'Avg Time', value: avgTime, colorClass: 'text-text-primary', trend: avgTimeTrend ? { ...avgTimeTrend, formatted: `${avgTimeTrend.direction} ${(Math.abs(avgTimeTrend.delta) / 1000).toFixed(2)}s` } : null },
+                { label: 'Total', value: catStats.totalAnswered.toLocaleString(), colorClass: 'text-text-muted', trend: null }
             ];
         },
 
@@ -569,6 +588,48 @@ document.addEventListener('alpine:init', () => {
             }, 3000);
         },
 
+        // Count-up Animation Utility
+        animateValue(key, targetValue, duration = 400) {
+            // Cancel any existing animation for this key
+            if (this.animationFrames[key]) cancelAnimationFrame(this.animationFrames[key]);
+
+            const startValue = this.animatedStats[key] || 0;
+            const startTime = performance.now();
+            const diff = targetValue - startValue;
+
+            const step = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease-out cubic
+                const eased = 1 - Math.pow(1 - progress, 3);
+                this.animatedStats[key] = startValue + (diff * eased);
+
+                if (progress < 1) {
+                    this.animationFrames[key] = requestAnimationFrame(step);
+                } else {
+                    this.animatedStats[key] = targetValue;
+                }
+            };
+            this.animationFrames[key] = requestAnimationFrame(step);
+        },
+
+        // Trend Calculation Helper
+        getTrend(current, baseline, lowerIsBetter = false) {
+            if (baseline === null || baseline === undefined || !this.sessionStartStats) {
+                return null;
+            }
+            const delta = current - baseline;
+            if (Math.abs(delta) < 0.01) return null; // No meaningful change
+
+            const isPositive = lowerIsBetter ? delta < 0 : delta > 0;
+            return {
+                delta: Math.abs(delta),
+                direction: isPositive ? '↑' : '↓',
+                colorClass: isPositive ? 'text-terminal-green' : 'text-signal-red',
+                formatted: `${isPositive ? '↑' : '↓'} ${Math.abs(delta).toFixed(1)}${typeof current === 'number' && current < 100 ? '%' : ''}`
+            };
+        },
+
         getCurrentStats() {
             const cat = this.practice.category;
             if (!this.categoryStats[cat]) {
@@ -695,11 +756,15 @@ document.addEventListener('alpine:init', () => {
             this.session.startTime = Date.now();
             this.session.seconds = 0;
 
-            // Snapshot stats for session comparison
+            // Snapshot stats for session comparison (for trend badges)
             const currentStats = this.getCurrentStats();
+            const avgTimeMs = currentStats.latencies.length ?
+                currentStats.latencies.reduce((a, b) => a + b, 0) / currentStats.latencies.length : 0;
             this.sessionStartStats = {
                 acc: currentStats.totalAnswered ? (currentStats.totalCorrect / currentStats.totalAnswered) : 0,
-                total: currentStats.totalAnswered
+                total: currentStats.totalAnswered,
+                avgTime: avgTimeMs,
+                bestStreak: currentStats.bestStreak
             };
 
             // Reset round state

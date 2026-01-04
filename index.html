@@ -563,19 +563,24 @@
                             <div class="flex justify-between items-end">
                                 <div class="text-center">
                                     <div class="text-xs text-text-muted mb-0.5">ACCURACY</div>
-                                    <div class="text-xl font-bold" :class="getAccuracyClass(roundAccuracy)"
-                                        x-text="roundAccuracy + '%'"></div>
+                                    <div class="text-xl font-bold stat-value" :class="getAccuracyClass(roundAccuracy)"
+                                        x-text="roundAccuracy + '%'"
+                                        x-effect="if (roundAccuracy > 0) $el.classList.add('pulse'); setTimeout(() => $el.classList.remove('pulse'), 300)">
+                                    </div>
                                 </div>
                                 <div class="h-8 w-px bg-charcoal-border/50"></div>
                                 <div class="text-center">
                                     <div class="text-xs text-text-muted mb-0.5">AVG TIME</div>
-                                    <div class="text-xl font-bold text-text-primary" x-text="roundAvgTime"></div>
+                                    <div class="text-xl font-bold text-text-primary stat-value" x-text="roundAvgTime">
+                                    </div>
                                 </div>
                                 <div class="h-8 w-px bg-charcoal-border/50"></div>
                                 <div class="text-center">
                                     <div class="text-xs text-text-muted mb-0.5">STREAK</div>
-                                    <div class="text-xl font-bold text-terminal-green"
-                                        x-text="getCurrentStats().streak"></div>
+                                    <div class="text-xl font-bold text-terminal-green stat-value"
+                                        x-text="getCurrentStats().streak"
+                                        x-effect="if (getCurrentStats().streak > 0) $el.classList.add('pulse'); setTimeout(() => $el.classList.remove('pulse'), 300)">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -748,17 +753,29 @@
                         <div class="text-3xl font-bold"
                             :class="getAccuracyClass(parseFloat(categoryStatsDisplay[0].value))"
                             x-text="categoryStatsDisplay[0].value"></div>
+                        <!-- Trend Badge -->
+                        <div x-show="categoryStatsDisplay[0].trend" x-cloak
+                            class="text-xs font-medium mt-1 inline-flex items-center gap-0.5"
+                            :class="categoryStatsDisplay[0].trend?.colorClass"
+                            x-text="categoryStatsDisplay[0].trend?.formatted"></div>
                     </div>
                     <div class="grid grid-cols-3 gap-1">
                         <div class="bg-charcoal-light border border-charcoal-border p-2 text-center">
                             <div class="text-[10px] text-text-muted mb-0.5">BEST</div>
                             <div class="text-lg font-bold text-session-gold" x-text="categoryStatsDisplay[1].value">
                             </div>
+                            <div x-show="categoryStatsDisplay[1].trend" x-cloak
+                                class="text-[10px] font-bold mt-0.5 animate-pulse"
+                                :class="categoryStatsDisplay[1].trend?.colorClass"
+                                x-text="categoryStatsDisplay[1].trend?.formatted"></div>
                         </div>
                         <div class="bg-charcoal-light border border-charcoal-border p-2 text-center">
                             <div class="text-[10px] text-text-muted mb-0.5">AVG</div>
                             <div class="text-lg font-bold text-text-primary" x-text="categoryStatsDisplay[2].value">
                             </div>
+                            <div x-show="categoryStatsDisplay[2].trend" x-cloak class="text-[10px] font-medium mt-0.5"
+                                :class="categoryStatsDisplay[2].trend?.colorClass"
+                                x-text="categoryStatsDisplay[2].trend?.formatted"></div>
                         </div>
                         <div class="bg-charcoal-light border border-charcoal-border p-2 text-center">
                             <div class="text-[10px] text-text-muted mb-0.5">TOTAL</div>
