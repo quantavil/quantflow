@@ -80,6 +80,19 @@ document.addEventListener('alpine:init', () => {
                 this.isSyncing = false;
                 if (this.pendingSync) this.syncToCloud(payload);
             }
+        },
+
+        async fetchCloudData() {
+            if (!this.isLoggedIn) return null;
+            try {
+                const res = await fetch(`${this.API_BASE}/api/data`, {
+                    headers: { 'Authorization': `Bearer ${this.token}` }
+                });
+                if (res.ok) {
+                    return await res.json();
+                }
+            } catch (e) { console.error('[AUTH] Fetch failed'); }
+            return null;
         }
     });
 });

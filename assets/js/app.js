@@ -342,6 +342,11 @@ document.addEventListener('alpine:init', () => {
 
             // Load saved practice state, then set defaults for missing variants
             this.loadPracticeState();
+
+            // Cloud sync if logged in
+            if (Alpine.store('auth').isLoggedIn) {
+                this.syncWithCloud();
+            }
         },
 
         safeGetStorage(key, defaultValue) {
@@ -1012,21 +1017,79 @@ document.addEventListener('alpine:init', () => {
                     const stats = JSON.parse(saved);
                     const today = new Date().toISOString().split('T')[0];
                     if (stats.date === today) this.todayCount = stats.todayCount || 0;
-                    if (stats.bestStreak) this.bestStreak = stats.bestStreak;
+                    this.bestStreak = stats.bestStreak || 0;
+                    this.totalAnswered = stats.totalAnswered || 0;
+                    this.totalCorrect = stats.totalCorrect || 0;
+                    this.fastCount = stats.fastCount || 0;
+                    this.slowCount = stats.slowCount || 0;
+                    this.errorCount = stats.errorCount || 0;
+                    this.latencies = stats.latencies || [];
+                    this.recentResponses = stats.recentResponses || [];
                     if (stats.categoryStats) this.categoryStats = stats.categoryStats;
                 }
             } catch (e) { }
         },
 
+        async syncWithCloud() {
+            const data = await Alpine.store('auth').fetchCloudData();
+            if (data && data.stats) {
+                this.mergeStats(data.stats);
+                this.log('[SYS] Cloud stats synchronized.');
+            }
+        },
+
+        mergeStats(cloud) {
+            // Core merge logic: take the maximum of cumulative values
+            this.totalAnswered = Math.max(this.totalAnswered, cloud.totalAnswered || 0);
+            this.totalCorrect = Math.max(this.totalCorrect, cloud.totalCorrect || 0);
+            this.fastCount = Math.max(this.fastCount, cloud.fastCount || 0);
+            this.slowCount = Math.max(this.slowCount, cloud.slowCount || 0);
+            this.errorCount = Math.max(this.errorCount, cloud.errorCount || 0);
+            this.bestStreak = Math.max(this.bestStreak, cloud.bestStreak || 0);
+
+            // Merge recent activity if cloud has more or local is empty
+            if (cloud.recentResponses?.length > 0 && (this.recentResponses.length === 0 || cloud.recentResponses.length >= this.recentResponses.length)) {
+                this.recentResponses = cloud.recentResponses;
+            }
+            if (cloud.latencies?.length > 0 && (this.latencies.length === 0 || cloud.latencies.length >= this.latencies.length)) {
+                this.latencies = cloud.latencies;
+            }
+
+            // Category merge
+            if (cloud.categoryStats) {
+                for (const cat in cloud.categoryStats) {
+                    if (!this.categoryStats[cat]) {
+                        this.categoryStats[cat] = cloud.categoryStats[cat];
+                    } else {
+                        // Keep the version with more progress
+                        if (cloud.categoryStats[cat].totalAnswered > this.categoryStats[cat].totalAnswered) {
+                            this.categoryStats[cat] = cloud.categoryStats[cat];
+                        }
+                    }
+                }
+            }
+
+            this.saveStats();
+        },
+
         saveStats() {
             try {
                 const today = new Date().toISOString().split('T')[0];
-                localStorage.setItem('quantflow_stats', JSON.stringify({
+                const statsPayload = {
                     date: today,
                     todayCount: this.todayCount,
                     bestStreak: this.bestStreak,
+                    totalAnswered: this.totalAnswered,
+                    totalCorrect: this.totalCorrect,
+                    fastCount: this.fastCount,
+                    slowCount: this.slowCount,
+                    errorCount: this.errorCount,
+                    latencies: this.latencies,
+                    recentResponses: this.recentResponses,
                     categoryStats: this.categoryStats
-                }));
+                };
+
+                localStorage.setItem('quantflow_stats', JSON.stringify(statsPayload));
 
                 let daily = {};
                 try {
@@ -1038,11 +1101,7 @@ document.addEventListener('alpine:init', () => {
                 // Sync logic moved to Alpine.store('auth')
                 if (Alpine.store('auth').isLoggedIn) {
                     const payload = {
-                        stats: {
-                            todayCount: this.todayCount,
-                            bestStreak: this.bestStreak,
-                            categoryStats: this.categoryStats
-                        },
+                        stats: statsPayload,
                         lastSync: new Date().toISOString()
                     };
                     Alpine.store('auth').syncToCloud(payload);
