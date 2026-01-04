@@ -132,11 +132,117 @@ document.addEventListener('alpine:init', () => {
             return this.session.isActive && !this.session.isPaused;
         },
 
+        // Expanded Analytics State
+        analyticsMode: 'expanded', // 'expanded' | 'collapsed'
+
+        // Session Performance Card Logic
+        sessionStartStats: null, // Snapshot of stats at session start
+
+        // Toast Notification System
+        toasts: [],
+
+        // Performance Ring Logic
+        // Computed properties will handle this
+
+        // Sparkline Hover State
+        sparklineHover: {
+            visible: false,
+            index: -1,
+            x: 0,
+            y: 0,
+            value: 0
+        },
+
         getThresholdClass(value, thresholds, classes) {
             for (let i = 0; i < thresholds.length; i++) {
                 if (value < thresholds[i]) return classes[i];
             }
             return classes[classes.length - 1];
+        },
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ANALYTICS COMPUTED PROPERTIES
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // Session Delta Stats
+        get sessionDeltas() {
+            if (!this.sessionStartStats) return null;
+            const current = this.getCurrentStats();
+
+            // Calculate deltas
+            const accCurrent = current.totalAnswered ? (current.totalCorrect / current.totalAnswered) : 0;
+            const accStart = this.sessionStartStats.acc || 0;
+            const accDelta = (accCurrent * 100) - (accStart * 100);
+
+            return {
+                acc: accDelta > 0 ? `+${accDelta.toFixed(1)}%` : `${accDelta.toFixed(1)}%`,
+                accClass: accDelta > 0 ? 'text-terminal-green' : (accDelta < 0 ? 'text-signal-red' : 'text-text-muted'),
+                questions: current.totalAnswered - this.sessionStartStats.total,
+                streak: current.streak
+            };
+        },
+
+        // Performance Ring Arcs
+        get performanceRing() {
+            const stats = this.getCurrentStats();
+            const total = stats.fastCount + stats.slowCount + stats.errorCount || 1; // Avoid divide by zero
+
+            // We want 3 concentric rings. 
+            // Outer: Fast (Green)
+            // Middle: Slow (Orange)
+            // Inner: Error (Red)
+
+            // Calculate percentages/degrees (for conic-gradient)
+            const fastDeg = Math.round((stats.fastCount / total) * 360);
+            const slowDeg = Math.round((stats.slowCount / total) * 360);
+            const errorDeg = Math.round((stats.errorCount / total) * 360);
+
+            return {
+                fast: `conic-gradient(var(--color-terminal-green) ${fastDeg}deg, transparent 0)`,
+                slow: `conic-gradient(var(--color-signal-orange) ${slowDeg}deg, transparent 0)`,
+                error: `conic-gradient(var(--color-signal-red) ${errorDeg}deg, transparent 0)`,
+                total: total,
+                fastPct: Math.round((stats.fastCount / total) * 100),
+                slowPct: Math.round((stats.slowCount / total) * 100),
+                errorPct: Math.round((stats.errorCount / total) * 100)
+            };
+        },
+
+        // Enhanced Sparkline with Moving Average
+        get sparklineComponents() {
+            const stats = this.getCurrentStats();
+            const data = stats.latencies.slice(-20); // Last 20
+
+            if (data.length < 2) return { path: '', fill: '', maPath: '', hasData: false };
+
+            const limits = this.sparklineLimits;
+            const width = 280, height = 80, padding = 4;
+            const innerHeight = height - (padding * 2);
+            const innerWidth = width - (padding * 2);
+            const range = limits.max - limits.min || 1;
+
+            const getY = (val) => height - padding - ((val - limits.min) / range) * innerHeight;
+            const getX = (i) => padding + (i / (data.length - 1)) * innerWidth;
+
+            // Main Line Path
+            const points = data.map((val, i) => `${getX(i)},${getY(val)}`);
+            const path = 'M' + points.join(' L');
+
+            // Gradient Fill Area
+            const fillPath = `${path} L${getX(data.length - 1)},${height} L${getX(0)},${height} Z`;
+
+            // Moving Average (Simple 3-point)
+            let maPath = '';
+            if (data.length >= 3) {
+                const maPoints = [];
+                for (let i = 2; i < data.length; i++) {
+                    const avg = (data[i] + data[i - 1] + data[i - 2]) / 3;
+                    maPoints.push(`${getX(i)},${getY(avg)}`);
+                }
+                if (maPoints.length > 0) maPath = 'M' + maPoints.join(' L');
+            }
+
+            return { path, fill: fillPath, maPath, hasData: true };
         },
 
         get currentTierLabel() {
@@ -455,6 +561,14 @@ document.addEventListener('alpine:init', () => {
             });
         },
 
+        showToast(id, title, icon) {
+            const toast = { id: Date.now(), title, icon };
+            this.toasts.push(toast);
+            setTimeout(() => {
+                this.toasts = this.toasts.filter(t => t.id !== toast.id);
+            }, 3000);
+        },
+
         getCurrentStats() {
             const cat = this.practice.category;
             if (!this.categoryStats[cat]) {
@@ -580,6 +694,13 @@ document.addEventListener('alpine:init', () => {
             this.session.isPaused = false;
             this.session.startTime = Date.now();
             this.session.seconds = 0;
+
+            // Snapshot stats for session comparison
+            const currentStats = this.getCurrentStats();
+            this.sessionStartStats = {
+                acc: currentStats.totalAnswered ? (currentStats.totalCorrect / currentStats.totalAnswered) : 0,
+                total: currentStats.totalAnswered
+            };
 
             // Reset round state
             this.latencies = [];
