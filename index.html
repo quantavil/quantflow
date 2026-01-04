@@ -368,7 +368,7 @@
                             <div class="mt-6 flex items-center justify-center gap-4">
                                 <div class="text-2xl font-bold tabular-nums" :class="timerColorClass"
                                     x-show="$store.settings.display.showTimer">
-                                    <span x-text="liveTimerDisplay"></span><span class="text-sm">s</span>
+                                    <span x-text="liveTimerDisplay"></span><span class="text-sm" x-show="session.isActive">s</span>
                                 </div>
                             </div>
                         </div>
